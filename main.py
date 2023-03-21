@@ -6,12 +6,11 @@ import geopandas as gpd
 import boto3
 
 from road import *
-from io import StringIO
+from io import BytesIO
 
 from shapely.geometry import LineString
 
 bucket_name = os.environ['BUCKET_NAME']
-s3 = boto3.resource('s3')
 
 def get_epsg(lat, lon):
     return int(32700 - round((45 + lat) / 90, 0) * 100 + round((183 + lon) / 6, 0))
@@ -22,7 +21,7 @@ def handler(event, context):
     # Overpass API request
     print("OVERPASS Request ...")
     overpass_url = 'http://overpass-api.de/api/interpreter'
-    overpass_query = event['overpass_query']
+    overpass_query = event['overpassQuery']
     response = requests.get(overpass_url, params={'data': overpass_query})
     data = response.json()
 
@@ -71,12 +70,8 @@ def handler(event, context):
     links['time'] = links['length']/(links['maxspeed']*1000/3600)
 
     # Outputs
-    links_buffer = StringIO()
-    links.to_file(links_buffer)
-    s3.Object(bucket_name, 'links.geojson').put(Body=links_buffer.getvalue())
-
-    nodes_buffer = StringIO()
-    nodes.to_file(nodes_buffer)
-    s3.Object(bucket_name, 'nodes.geojson').put(Body=nodes_buffer.getvalue())
+    folder = event['callID']
+    links.to_file(f's3://{bucket_name}/{folder}/links.geojson', driver='GeoJSON')
+    nodes.to_file(f's3://{bucket_name}/{folder}/nodes.geojson', driver='GeoJSON')
     #links.to_file(os.path.join(wd, 'links.geojson'))
     #nodes.to_file(os.path.join(wd, 'nodes.geojson'))
