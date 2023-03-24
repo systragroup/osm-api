@@ -46,6 +46,7 @@ def handler(event, context):
     # Create links and nodes netowrks from ways of OSM
     print("Convert ways to links and node ...")
     links, nodes = get_links_and_nodes(os.path.join(wd, 'way.geojson'), split_direction=True)
+    nodes = nodes.set_crs(links.crs)
 
     # SOME CLEANING ON THE ONEWAY ... Work In Progress
     links['oneway'].fillna('no', inplace=True)
