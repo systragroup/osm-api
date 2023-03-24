@@ -76,6 +76,7 @@ def handler(event, context):
 
     # Add Time
     links['time'] = links['length']/(links['maxspeed']*1000/3600)
+    links = links.rename(columns = {'maxspeed' : 'speed'})
 
     # Outputs
     folder = event['callID']
