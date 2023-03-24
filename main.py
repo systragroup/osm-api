@@ -62,7 +62,14 @@ def handler(event, context):
     links['length'] = links.to_crs(epsg).length
 
     # Add Speed
-    links['maxspeed'] = links['maxspeed'].str.replace('mph','').replace('kph', '')
+    links['maxspeed'] = links['maxspeed'].str.lower().str.replace('kph', '')
+    try:
+        mph_index = links['maxspeed'].astype(str).str.lower().str.contains('mph')
+        links.loc[mph_index,'maxspeed'] = links.loc[mph_index,'maxspeed'].str.lower().str.replace('mph','').astype('float')* 1.60934
+    except:
+        print('fail to convert mph in maxspeed to float.')
+        
+    links.loc[~links['maxspeed'].astype(str).str.isdigit(),'maxspeed'] = np.nan
     links['maxspeed'] = pd.to_numeric(links['maxspeed'])
     speed_dict = links.dropna().groupby('highway')['maxspeed'].agg(np.mean).to_dict()
     links.loc[~np.isfinite(links['maxspeed']),'maxspeed'] = links.loc[~np.isfinite(links['maxspeed']),'highway'].apply(lambda x: speed_dict.get(x))
