@@ -41,16 +41,16 @@ def handler(event, context):
     tags = pd.DataFrame.from_records(way['tags'].values, index=way['tags'].index)
     cols = event['tags']
     way_tags = way.drop(columns=['nodes', 'tags'], errors='ignore').join(tags[cols])
+
+    # SOME CLEANING ON THE ONEWAY ... Work In Progress
+    way_tags['oneway'].fillna('no', inplace=True)
+    way_tags['oneway'] = way_tags['oneway'].replace('yes', True).replace('no', False).replace('-1', False).replace(-1, False).replace('alternating',False)
     way_tags.to_file(os.path.join(wd, 'way.geojson'))
 
     # Create links and nodes netowrks from ways of OSM
     print("Convert ways to links and node ...")
     links, nodes = get_links_and_nodes(os.path.join(wd, 'way.geojson'), split_direction=True)
     nodes = nodes.set_crs(links.crs)
-
-    # SOME CLEANING ON THE ONEWAY ... Work In Progress
-    links['oneway'].fillna('no', inplace=True)
-    links['oneway'] = links['oneway'].replace('yes', True).replace('no', False).replace('-1', False).replace(-1, False)
 
     # Clean Cul de Sac
     print("Remove Cul de Sac ...")
