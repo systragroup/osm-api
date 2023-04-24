@@ -10,8 +10,24 @@ from io import BytesIO
 
 from shapely.geometry import LineString
 
+
 bucket_name = os.environ['BUCKET_NAME']
 
+def process_list_in_col(col_values,new_type,function):
+        if isinstance(col_values, list):
+            return  function([new_type(val) for val in col_values])
+        else:
+            return new_type(col_values)
+        
+def remove_list_in_col(col_values,method='first'):
+    if isinstance(col_values, list):
+        if method == 'first':
+            return col_values[0]
+        else:
+            return col_values[-1]
+        
+    else:
+        return col_values
 def get_epsg(lat, lon):
     return int(32700 - round((45 + lat) / 90, 0) * 100 + round((183 + lon) / 6, 0))
 
@@ -49,12 +65,34 @@ def handler(event, context):
 
     # Create links and nodes netowrks from ways of OSM
     print("Convert ways to links and node ...")
-    links, nodes = get_links_and_nodes(os.path.join(wd, 'way.geojson'), split_direction=True)
+    links, nodes = get_links_and_nodes(os.path.join(wd, 'way.geojson'), split_direction=False)
     nodes = nodes.set_crs(links.crs)
+
+    #remove string in maxspeed
+    links = clean_maxspeed(links)
+
+    # make sure the geometry are in the right direction (a->b)
+    links = rectify_geometry_direction(links,nodes)
+
+    # remove duplicated links (a-b)
+    print("simplifying links ...")
+    links = drop_duplicated_links(links)
+    
+    # simplify. remove deg 2 nodes when possible. group by oneway and highway to merge each links.
+    links = simplify(links)
+
+    # split onwway into 2 links a-b, b-a
+    links = split_oneway(links)
 
     # Clean Cul de Sac
     print("Remove Cul de Sac ...")
     links, nodes = main_strongly_connected_component(links, nodes)
+
+    print('removing list in columns ...')
+    links['maxspeed'] = links['maxspeed'].apply(lambda x: process_list_in_col(x,float,np.nanmean))
+    links['lanes'] = links['lanes'].apply(lambda x: process_list_in_col(x,float,np.nanmean)).apply(lambda x: np.floor(x))
+    for col in ['id', 'type', 'highway','name','surface']:
+        links[col] = links[col].apply(lambda x: remove_list_in_col(x,'first'))
 
     # Add length
     print("Write Links and Nodes ...")
@@ -62,18 +100,19 @@ def handler(event, context):
     links['length'] = links.to_crs(epsg).length
 
     # Add Speed
-    links['maxspeed'] = links['maxspeed'].str.lower().str.replace('kph', '')
     try:
-        mph_index = links['maxspeed'].astype(str).str.lower().str.contains('mph')
-        links.loc[mph_index,'maxspeed'] = links.loc[mph_index,'maxspeed'].str.lower().str.replace('mph','').astype('float')* 1.60934
+        links.loc[~links['maxspeed'].astype(str).str.isdigit(),'maxspeed'] = np.nan
+        links['maxspeed'] = pd.to_numeric(links['maxspeed'])
+        speed_dict = links.dropna().groupby('highway')['maxspeed'].agg(np.mean).to_dict()
+        links.loc[~np.isfinite(links['maxspeed']),'maxspeed'] = links.loc[~np.isfinite(links['maxspeed']),'highway'].apply(lambda x: speed_dict.get(x))
     except:
-        print('fail to convert mph in maxspeed to float.')
-        
-    links.loc[~links['maxspeed'].astype(str).str.isdigit(),'maxspeed'] = np.nan
-    links['maxspeed'] = pd.to_numeric(links['maxspeed'])
-    speed_dict = links.dropna().groupby('highway')['maxspeed'].agg(np.mean).to_dict()
-    links.loc[~np.isfinite(links['maxspeed']),'maxspeed'] = links.loc[~np.isfinite(links['maxspeed']),'highway'].apply(lambda x: speed_dict.get(x))
-
+        print('fail to convert NaN maxspeed to the average max speed (by highway)')
+    try:
+        links['lanes'] = pd.to_numeric(links['lanes'])
+        lane_dict = links.groupby('highway')['lanes'].agg(np.nanmean).apply(lambda x: np.floor(x)).to_dict()
+        links.loc[~np.isfinite(links['lanes']),'lanes'] = links.loc[~np.isfinite(links['lanes']),'highway'].apply(lambda x: lane_dict.get(x))
+    except:
+        print('fail to convert NaN Lane to the average lanes (by highway)')
     # Add Time
     links['time'] = links['length']/(links['maxspeed']*1000/3600)
     links = links.rename(columns = {'maxspeed' : 'speed'})
