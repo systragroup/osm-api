@@ -9,12 +9,36 @@ import pandas as pd
 import networkx as nx
 from itertools import islice
 from scipy.sparse.csgraph import dijkstra
-import sys
-# setting path
-sys.path.append('../quetzal')
-from quetzal.engine.pathfinder_utils import sparse_matrix, get_path, get_edge_path
+from scipy.sparse import csr_matrix
+from numba import jit
+import numba as nb
 
+# buildindex
+def build_index(edges):
+    nodelist = {e[0] for e in edges}.union({e[1] for e in edges})
+    nlen = len(nodelist)
+    return dict(zip(nodelist, range(nlen)))
 
+def sparse_matrix(edges, index=None):
+    if index is None:
+        index = build_index(edges)
+    nlen = len(index)
+    coefficients = zip(*((index[u], index[v], w) for u, v, w in edges))
+    row, col, data = coefficients
+    return csr_matrix((data, (row, col)), shape=(nlen, nlen)), index
+
+@jit(nopython=True,locals={'predecessors':nb.int32[:,::1],'i':nb.int32,'j':nb.int32})
+def get_path(predecessors, i, j):
+    path = [j]
+    k = j
+    p = 0
+    while p != -9999:
+        k = p = predecessors[i, k]
+        path.append(p)
+    return path[::-1][1:]
+
+def get_edge_path(p):
+    return list(zip(p[:-1], p[1:]))
 
 def merged_reversed_geometries_dict(geojson_dict):
     features = {
