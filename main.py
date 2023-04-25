@@ -117,6 +117,12 @@ def handler(event, context):
     links['time'] = links['length']/(links['maxspeed']*1000/3600)
     links = links.rename(columns = {'maxspeed' : 'speed'})
 
+    # reindex and remove ununsed nodes
+    links = links.reset_index(drop=True)
+    links.index = 'road_link_'+links.index.astype(str)
+    nodes_set = set(links['a']).union(set(links['b']))
+    nodes = nodes.loc[nodes_set].sort_index()
+
     # Outputs
     folder = event['callID']
     links.to_file(f's3://{bucket_name}/{folder}/links.geojson', driver='GeoJSON')
