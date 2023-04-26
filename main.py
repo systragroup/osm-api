@@ -101,8 +101,6 @@ def handler(event, context):
 
     # Add Speed
     try:
-        links.loc[~links['maxspeed'].astype(str).str.isdigit(),'maxspeed'] = np.nan
-        links['maxspeed'] = pd.to_numeric(links['maxspeed'])
         speed_dict = links.dropna().groupby('highway')['maxspeed'].agg(np.mean).to_dict()
         links.loc[~np.isfinite(links['maxspeed']),'maxspeed'] = links.loc[~np.isfinite(links['maxspeed']),'highway'].apply(lambda x: speed_dict.get(x))
     except:
@@ -121,7 +119,7 @@ def handler(event, context):
     links = links.reset_index(drop=True)
     links.index = 'road_link_'+links.index.astype(str)
     nodes_set = set(links['a']).union(set(links['b']))
-    nodes = nodes.loc[nodes_set].sort_index()
+    nodes = nodes.loc[list(nodes_set)].sort_index()
 
     # Outputs
     folder = event['callID']
