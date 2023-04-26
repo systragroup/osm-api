@@ -60,7 +60,9 @@ def handler(event, context):
 
     # SOME CLEANING ON THE ONEWAY ... Work In Progress
     way_tags['oneway'].fillna('no', inplace=True)
-    way_tags['oneway'] = way_tags['oneway'].replace('yes', True).replace('no', False).replace('-1', False).replace(-1, False).replace('alternating',False)
+    way_tags['oneway'] = way_tags['oneway'].replace('yes', True).replace('no', False).replace('-1', False).replace(-1, False).replace('alternating',False).replace('reversible',False)
+    if len(way_tags.unique())>2:
+        print('WARNING: some oneway tags are not defined',way_tags.unique())
     way_tags.to_file(os.path.join(wd, 'way.geojson'))
 
     # Create links and nodes netowrks from ways of OSM
