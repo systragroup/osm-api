@@ -219,8 +219,8 @@ def simplify(links,cutoff = 10):
     print(len(sources),'deg 2 nodes')
     path_to_merge = []
     # graph on oneway and highway as unique as we dont want to aggregate highway together or one way 
-    for col1, col2 in [(a,b) for a in links['oneway'].unique() for b in links['highway'].unique()]:
-        filtered_links = links[(links['oneway']==col1) & (links['highway']==col2)]
+    for oneway, highway in [(a,b) for a in links['oneway'].unique() for b in links['highway'].unique()]:
+        filtered_links = links[(links['oneway']==oneway) & (links['highway']==highway)]
         if len(filtered_links) < 2:
             continue
         nodes_set = set(filtered_links['a']).union(set(filtered_links['b']))
@@ -244,7 +244,7 @@ def simplify(links,cutoff = 10):
             origin_sparse = [node_index[x] for x in origins]
             dist_matrix,predecessors = dijkstra(
                     csgraph=mat,
-                    directed=True,
+                    directed=oneway,
                     indices=origin_sparse,
                     return_predecessors=True,
                     limit=cutoff
@@ -262,9 +262,6 @@ def simplify(links,cutoff = 10):
                     if (path_deg[-1]!=2): 
                         if (set(path_deg[1:-1]) == {2}):
                             path_to_merge.append([*map(index_node.get, path)])
-                            if len(path_to_merge)>1:
-                                if path_to_merge[-1] == path_to_merge[-2]:
-                                    print(path)
                     #if destination == 2 
                     elif len(path) == cutoff+1: 
                         #keep path if len(path) == cutoff+1. at the end redo on those with large cutoff
@@ -278,7 +275,7 @@ def simplify(links,cutoff = 10):
             origin_sparse = [node_index[x] for x in unfounds_origins]
             dist_matrix,predecessors = dijkstra(
                     csgraph=mat,
-                    directed=True,
+                    directed=oneway,
                     indices=origin_sparse,
                     return_predecessors=True,
                     limit=100
@@ -298,7 +295,11 @@ def simplify(links,cutoff = 10):
 
     # transform sparse nodes path to links path ([rlinks_2, rlinks_40, ...])
     links_dict = links.reset_index().set_index(['a','b'])['index'].to_dict()
-    links_paths = [[*map(links_dict.get, get_edge_path(path))]for path in path_to_merge]
+    links_paths = []
+    for path in path_to_merge:
+        edge_path = get_edge_path(path)
+        temp_path = [links_dict.get(edge, links_dict.get(edge[::-1])) for edge in edge_path]
+        links_paths.append(temp_path)
 
     #apply a group number to each sequence to merge. group 0 is nothing to merge.
     links['group']=0
@@ -315,11 +316,15 @@ def simplify(links,cutoff = 10):
     index_dict = tlinks.reset_index().groupby('group')['index'].agg('first').to_dict()
 
     list_or_first = lambda x : list(x) if len(set(x))>1 else x[0]
-    merge_lines = lambda x: linemerge(MultiLineString(list(x)))
-
+    #merge_lines = lambda x: linemerge(MultiLineString(list(x)))
+    def merge_lines(geom):
+        for i in range(1,len(geom)):
+            if (geom[i].coords[0]!=geom[i-1].coords[-1]):
+                geom[i] = reverse_geom(geom[i])
+        return linemerge(MultiLineString(list(geom)))
     # merge links
     agg_dict = {col:list_or_first for col in tlinks.columns}
-    agg_dict['geometry']=merge_lines
+    agg_dict['geometry'] = merge_lines
     agg_dict['a']='first'
     agg_dict['b']='last'
     tlinks = tlinks.groupby('group').agg(agg_dict)
@@ -337,6 +342,7 @@ def simplify(links,cutoff = 10):
 
     # TODO: on a des multiLinestring. il faudrait mieux merger.
     print(len(tlinks[tlinks['geometry'].apply(lambda x: x.type != 'LineString')]),'merged_links unmerged because the geometry became a multilinestring')
+    unmerged = tlinks[tlinks['geometry'].apply(lambda x: x.type != 'LineString')]
     tlinks = tlinks[tlinks['geometry'].apply(lambda x: x.type=='LineString')]
 
     #merge tlinks back into links
@@ -345,7 +351,7 @@ def simplify(links,cutoff = 10):
     links = pd.concat([links,tlinks])
     links = links.drop(columns=['weight','group'])
 
-    return links
+    return links,unmerged
 
 def split_oneway(links):
     nlinks = links[links['oneway']==False].copy()
