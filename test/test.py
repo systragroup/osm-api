@@ -62,7 +62,14 @@ class TestInit(unittest.TestCase):
         self.assertAlmostEqual(alt[0,-1],364)
         self.assertAlmostEqual(alt[-1,0],94)
         self.assertAlmostEqual(alt[-1,-1],15)
-        
+    
+    def test_fill_missing_elevation(self):
+        path = 'tmp/N45W074.hgt'
+        alt,_,_ = read_hgt_file(path,self.arc)
+        alt = fill_missing_elevation(alt)
+        missing_list = alt[alt == -32768]
+        self.assertTrue(len(missing_list)==0)
+
     def test_interpolate_elevation(self):
         path = 'tmp/N45W074.hgt'
         alt, lat, lon = read_hgt_file(path,self.arc)
