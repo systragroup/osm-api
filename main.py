@@ -6,6 +6,7 @@ import geopandas as gpd
 import boto3
 
 from road import *
+from elevation import get_elevation_from_srtm, calc_incline
 from io import BytesIO
 
 from shapely.geometry import LineString
@@ -122,6 +123,14 @@ def handler(event, context):
     links.index = 'road_link_'+links.index.astype(str)
     nodes_set = set(links['a']).union(set(links['b']))
     nodes = nodes.loc[list(nodes_set)].sort_index()
+
+    # add elevation
+    el_dict = get_elevation_from_srtm(nodes)
+    nodes['elevation'] = nodes.index.map(el_dict.get)
+    # incline from node a to b in deg. neg if going down (if b is lower dans a)
+    links['incline'] = calc_incline(links['a'].apply(lambda x: el_dict.get(x)).values,
+                                links['b'].apply(lambda x: el_dict.get(x)).values,
+                                links['length'].values)
 
     # Outputs
     folder = event['callID']
