@@ -2,7 +2,13 @@
 
 see instruction on AWS ECR
 
-## TEST Lamnda function
+## Unit Tests
+
+```bash
+python test/test.py
+``` 
+
+## TEST Lambda function
 
 1) create a test.env file at the root of this folder (with the DockerFile)
 ```bash
@@ -12,12 +18,12 @@ AWS_REGION=ca-central
 BUCKET_NAME=quenedi-osm
 AWS_LAMBDA_FUNCTION_MEMORY_SIZE=3000
 ```
-2) Buld the Docker from quetzal root directory (not this one)
+2) Build the Docker
 ```bash
 docker build -t osm-api:latest .
 
 ```
-3) run the docker with the environment variable
+3) Run the docker with the environment variable
 ```bash
 docker run -p 9000:8080 --env-file 'test.env' osm-api 
 ```
