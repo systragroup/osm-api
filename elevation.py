@@ -6,7 +6,7 @@ import requests
 from io import BytesIO
 import zipfile
 import time
-from scipy.interpolate import RegularGridInterpolator
+from scipy.interpolate import RegularGridInterpolator, NearestNDInterpolator
 
 
 def get_elevation_from_srtm(tdf:gpd.GeoDataFrame) -> Dict[Any,int]:
@@ -50,6 +50,8 @@ def get_elevation_from_srtm(tdf:gpd.GeoDataFrame) -> Dict[Any,int]:
         fetch_data(url)
 
         alt, lat, lon = read_hgt_file('/tmp/{f}'.format(f=file),arc_dict[srtm])
+
+        alt = fill_missing_elevation(alt)
 
         temp_df['elevation'] = interpolate_elevation(temp_df['lon'].values,temp_df['lat'].values, alt, lon, lat)
 
@@ -153,6 +155,23 @@ def read_hgt_file(hgt_file: str, arc: int) -> Tuple[np.ndarray, np.ndarray, np.n
         elevation = np.fromfile(hgt_data, np.dtype('>i2'), SAMPLES*SAMPLES)\
                                 .reshape((SAMPLES, SAMPLES))
         return np.flip(elevation, axis=0).T, lat, lon
+    
+def fill_missing_elevation(alt: np.ndarray) -> np.ndarray:
+    '''
+    NaN value are equal to -32768. Interpolated those value with kneighbor
+
+    parameters
+    ----------
+    alt: np.ndarray = Matrix of elevation (from read_hgt_file())
+
+    returns
+    ----------
+    alt: np.ndarray = Matrix of elevation with missing value interpolated from kneighbor
+    '''
+    mask = np.where(alt != -32768)
+    interp = NearestNDInterpolator(np.transpose(mask), alt[mask])
+    interp_alt = interp(*np.indices(alt.shape))
+    return interp_alt
     
     
 def interpolate_elevation(lon_list: List[float], lat_list: List[float], alt: np.ndarray, lon: np.ndarray, lat:np.ndarray) -> List[int]:
