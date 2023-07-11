@@ -49,7 +49,7 @@ def get_elevation_from_srtm(tdf:gpd.GeoDataFrame) -> Dict[Any,int]:
 
         fetch_data(url)
 
-        alt, lat, lon = read_hgt_file('tmp/{f}'.format(f=file),arc_dict[srtm])
+        alt, lat, lon = read_hgt_file('/tmp/{f}'.format(f=file),arc_dict[srtm])
 
         temp_df['elevation'] = interpolate_elevation(temp_df['lon'].values,temp_df['lat'].values, alt, lon, lat)
 
@@ -107,14 +107,14 @@ def fetch_data(url: str) -> None:
         response = requests.get(url)
         buffer = BytesIO(response.content)
         with zipfile.ZipFile(buffer, "r") as zip_ref:
-            zip_ref.extractall('tmp')
+            zip_ref.extractall('/tmp')
             print('file save tmp/')
     except:
         time.sleep(2)
         response = requests.get(url)
         buffer = BytesIO(response.content)
         with zipfile.ZipFile(buffer, "r") as zip_ref:
-            zip_ref.extractall('tmp')
+            zip_ref.extractall('/tmp')
             print('file save to tmp/')
     
 
