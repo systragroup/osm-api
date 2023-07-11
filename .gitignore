@@ -1,4 +1,6 @@
+tmp/*
 .ipynb_checkpoints
 .python-version
 __pycache__
 .DS_Store
+*.env

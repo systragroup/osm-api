@@ -1,4 +1,4 @@
-FROM public.ecr.aws/lambda/python:3.8.2023.01.11.07
+FROM public.ecr.aws/lambda/python:3.8.2023.07.11.09
 COPY ./requirements.txt ./requirements.txt
 RUN pip install -r ./requirements.txt
 
