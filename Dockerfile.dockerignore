@@ -1,0 +1,7 @@
+**__pycache__**
+*.pyc
+**.cache**
+**.ipynb_checkpoints**
+**.DS_store**
+notebooks/*
+test/*

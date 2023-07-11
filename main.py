@@ -35,6 +35,12 @@ def get_epsg(lat, lon):
 def handler(event, context):
     wd = '/tmp/'
 
+    # add elevation arg. if not provided. set to True
+    if 'elevation' in (event.keys()):
+        add_elevation = event['elevation']
+    else:
+        add_elevation = True
+
     # Overpass API request
     print("OVERPASS Request ...")
     overpass_url = 'http://overpass-api.de/api/interpreter'
@@ -124,17 +130,20 @@ def handler(event, context):
     nodes_set = set(links['a']).union(set(links['b']))
     nodes = nodes.loc[list(nodes_set)].sort_index()
 
-    # add elevation
-    el_dict = get_elevation_from_srtm(nodes)
-    nodes['elevation'] = nodes.index.map(el_dict.get)
-    # incline from node a to b in deg. neg if going down (if b is lower dans a)
-    links['incline'] = calc_incline(links['a'].apply(lambda x: el_dict.get(x)).values,
-                                links['b'].apply(lambda x: el_dict.get(x)).values,
-                                links['length'].values)
+    if add_elevation:
+        print('Adding elevation')
+        el_dict = get_elevation_from_srtm(nodes)
+        nodes['elevation'] = nodes.index.map(el_dict.get)
+        # incline from node a to b in deg. neg if going down (if b is lower dans a)
+        links['incline'] = calc_incline(links['a'].apply(lambda x: el_dict.get(x)).values,
+                                    links['b'].apply(lambda x: el_dict.get(x)).values,
+                                    links['length'].values)
 
     # Outputs
+    print('Saving on S3')
     folder = event['callID']
     links.to_file(f's3://{bucket_name}/{folder}/links.geojson', driver='GeoJSON')
     nodes.to_file(f's3://{bucket_name}/{folder}/nodes.geojson', driver='GeoJSON')
+    print('Success!')
     #links.to_file(os.path.join(wd, 'links.geojson'))
     #nodes.to_file(os.path.join(wd, 'nodes.geojson'))
