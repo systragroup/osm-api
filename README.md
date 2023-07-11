@@ -1,6 +1,7 @@
 ## Deploy
 
-see instruction on AWS ECR
+1) See instruction on AWS ECR to deploy Docker image
+2) Update Lambda function image
 
 ## Unit Tests
 
