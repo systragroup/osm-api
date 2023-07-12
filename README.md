@@ -1,3 +1,8 @@
+## Quetzal OSM-api
+
+Scripts to fetch and simplify OSM network
+
+
 ## Deploy
 
 1) See instruction on AWS ECR to deploy Docker image
