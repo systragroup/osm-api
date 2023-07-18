@@ -6,3 +6,6 @@
 **.python-version**
 notebooks/*
 test/*
+tmp/*
+htmlcov/*
+*.env
