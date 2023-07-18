@@ -1,7 +1,5 @@
 # from home
-# pipenv shell to activate the env
-# python tests/test_wildturkey.py 
-# python -W ignore tests/test_wildturkey.py 
+# python tests/test.py 
 import sys
 import json
 import random
@@ -46,7 +44,7 @@ class TestInit(unittest.TestCase):
         
     def test_fetch_data(self):
         url = self.url_dict[self.srtm]['N45W074.hgt']
-        fetch_data(url)
+        fetch_data(url, 'tmp')
         path = 'tmp/N45W074.hgt'
         self.assertIsFile(path)
         

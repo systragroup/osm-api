@@ -12,6 +12,41 @@ from scipy.sparse.csgraph import dijkstra
 from scipy.sparse import csr_matrix
 from numba import jit
 import numba as nb
+from typing import *
+
+
+def process_list_in_col(col_values: Any, new_type : Any ,function: Callable[[Any],Any] = np.nanmean) -> Any:
+        '''
+        ex: links['maxspeed'].apply(lambda x: process_list_in_col(x,float,np.nanmean)
+        apply the function to the list. if its not a list. apply new type.
+        '''
+        if isinstance(col_values, list):
+            return  function([new_type(val) for val in col_values])
+        else:
+            return new_type(col_values)
+        
+def remove_list_in_col(col_values: Any, method: str ='first'):
+    '''
+    remove list. keep first item if first, last if last. return any other value that are not a list
+    '''
+    if isinstance(col_values, list):
+        if method == 'first':
+            return col_values[0]
+        else:
+            return col_values[-1]
+    else:
+        return col_values
+    
+def get_epsg(lat: float, lon: float) -> int:
+    '''
+    return EPSG in meter for a given (lat,lon)
+    lat is north south 
+    lon is est west
+    '''
+      
+    return int(32700 - round((45 + lat) / 90, 0) * 100 + round((183 + lon) / 6, 0))
+
+
 
 # buildindex
 def build_index(edges):
@@ -130,7 +165,20 @@ def split_directions(geojson_dict):
         f['geometry']['coordinates'] = list(reversed(f['geometry']['coordinates']))
     geojson_dict['features'] = features + reversed_features
 
-def get_links_and_nodes(geojson_file, split_direction=False):
+def get_links_and_nodes(geojson_file: str, split_direction: bool = False) -> Tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+    '''
+    read overpass way.geojson file and return links and nodes as gpd.GeoDataFrames.
+    Split direction dangerous here as Oneway tag is still rough (not just true / false...)
+
+    parameters
+    ----------
+    geojson_file (str) : path of the file
+    split_direction (bool) : if we want to duplicate oneway=False and reverse the geom.
+
+    returns
+    ----------
+    links, nodes
+    '''
     with open(geojson_file, 'r') as file:
         text = file.read()
     
@@ -161,7 +209,12 @@ def get_links_and_nodes(geojson_file, split_direction=False):
     links.index = ['road_link_%i' % i for i in range(len(links))]
     return links, nodes
 
-def main_strongly_connected_component(links, nodes=None, split_direction=False):
+def main_strongly_connected_component(links: gpd.GeoDataFrame,
+                                       nodes: gpd.GeoDataFrame = None, 
+                                       split_direction: bool = False) -> gpd.GeoDataFrame:
+    '''
+    remove cul-de-sac
+    '''
     graph = nx.DiGraph()
     graph.add_edges_from(links[['a', 'b']].values.tolist())
     if 'oneway' in links.columns and split_direction :
@@ -347,7 +400,10 @@ def simplify(links,cutoff = 10):
 
     return links
 
-def split_oneway(links):
+def split_oneway(links: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    '''
+    duplicated all links with oneway == False. reverse there geometry, reverse a,b and rename with _r
+    '''
     nlinks = links[links['oneway']==False].copy()
     nlinks.index = nlinks.index + '_r'
     nlinks['geometry'] = nlinks['geometry'].apply(lambda x: reverse_geom(x))
@@ -356,15 +412,20 @@ def split_oneway(links):
     links['oneway']=True
     return links
 
-def drop_duplicated_links(links,sort_column='maxspeed',ascending=False):
+def drop_duplicated_links(links: gpd.GeoDataFrame, sort_column: str = 'maxspeed', ascending: bool = False)-> gpd.GeoDataFrame:
+    '''
+    drop duplicated links (a,b) with condition sort_column. if maxspeed and ascending=False, keep faster road
+    '''
     before = len(links)
-    links['dup'] = links['a']+links['b']
+    links['dup'] = links['a'] + links['b']
     links = links.sort_values(sort_column, ascending=ascending).drop_duplicates('dup').sort_index()
     links = links.drop(columns='dup')
     print(before - len(links), 'links dropped')
     return links
 
-def clean_maxspeed(links):
+
+
+def clean_maxspeed(links: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     '''
     remove kph, remove and convert mph. transport everything to float. NaN if string (ex: walk)
     '''
@@ -376,4 +437,43 @@ def clean_maxspeed(links):
         print('fail to convert mph in maxspeed to float ')
     # this remove all strings lefts
     links['maxspeed'] = links['maxspeed'].apply(pd.to_numeric, errors='coerce')
+    return links
+
+def clean_oneway(links: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    '''
+    clean oneways. return True or False
+    '''
+    links['oneway'].fillna('no', inplace=True)
+    links['oneway'] = links['oneway'].replace('yes', True).replace('no', False).replace('-1', False).replace(-1, False).replace('alternating',False).replace('reversible',False)
+    if len(links['oneway'].unique())>2:
+        print('WARNING: some oneway tags are not defined',links.unique())    
+    return links
+
+
+
+
+def fill_na_col(links: gpd.GeoDataFrame, 
+               group: str = 'highway', 
+               col: str = 'maxspeed',
+               agg_func: Callable[[list],Any] = np.mean) -> gpd.GeoDataFrame:
+    '''
+    fill the nan value with the average of its group (if np.mean)
+    for example: with group=highway, col=maxspeed and agg_func = np.mean. the mean maxpeed per highway is compute.
+    then its apply to every NaN value of each highway.
+    Note that a group with only NaN will stay a nan (no agg_func will be applied.)
+
+    parameters
+    ----------
+    links: gpd.GeoDataFrame = links to apply the function
+    group: group to do the groupby and find the average (or any other function)
+    col: column to fill
+    agg_func : function to apply
+
+    returns
+    ----------
+    {index: elevation} : Dict[Any,int] = elevataion for each index in the GeoDataFrame
+    '''
+    
+    val_dict = links[[group,col]].dropna().groupby(group)[col].agg(agg_func).to_dict()
+    links.loc[~np.isfinite(links[col]),col] = links.loc[~np.isfinite(links[col]),group].apply(lambda x: val_dict.get(x))
     return links

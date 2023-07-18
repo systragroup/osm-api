@@ -6,6 +6,8 @@ import geopandas as gpd
 import boto3
 
 from road import *
+from bike import *
+from overpass import fetch_overpass, get_overpass_query
 from elevation import get_elevation_from_srtm, calc_incline
 from io import BytesIO
 
@@ -14,26 +16,19 @@ from shapely.geometry import LineString
 
 bucket_name = os.environ['BUCKET_NAME']
 
-def process_list_in_col(col_values,new_type,function):
-        if isinstance(col_values, list):
-            return  function([new_type(val) for val in col_values])
-        else:
-            return new_type(col_values)
-        
-def remove_list_in_col(col_values,method='first'):
-    if isinstance(col_values, list):
-        if method == 'first':
-            return col_values[0]
-        else:
-            return col_values[-1]
-        
-    else:
-        return col_values
-def get_epsg(lat, lon):
-    return int(32700 - round((45 + lat) / 90, 0) * 100 + round((183 + lon) / 6, 0))
-
 def handler(event, context):
+    '''
+    event keys :
+    bbox : list[float]
+    elevation: bool
+    highway : list[str]
+    callID : str
+
+    '''
+    print(event)
+
     wd = '/tmp/'
+    columns = ['highway', 'maxspeed', 'lanes', 'name', 'oneway', 'surface']
 
     # add elevation arg. if not provided. set to True
     if 'elevation' in (event.keys()):
@@ -41,41 +36,43 @@ def handler(event, context):
     else:
         add_elevation = True
 
-    # Overpass API request
-    print("OVERPASS Request ...")
-    overpass_url = 'http://overpass-api.de/api/interpreter'
-    overpass_query = event['overpassQuery']
-    response = requests.get(overpass_url, params={'data': overpass_query})
-    data = response.json()
+    # get bbox and requested highway
+    bbox = event['bbox']
+    bbox = (*bbox,) # list to tuple
+    highway_list = event['highway']
+    
+    # if cycleway is requested. add cyclway tags to the request.
+    # https://wiki.openstreetmap.org/wiki/Map_features#When_cycleway_is_drawn_as_its_own_way_(see_Bicycle)
+    cycleway_list = None
+    cycleway_columns = ['cycleway:both', 'cycleway:left','cycleway:right']
+    if "cycleway" in highway_list:
+        cycleway_list = ["lane", "opposite", "opposite_lane", "track", "opposite_track", 
+                        "share_busway", "opposite_share_busway", "shared_lane"]
+        columns += cycleway_columns
+        columns += ['cycleway']
+    
+    # Start
 
-    # Extract elements from response
-    print("Convert to GeoPandas ...")
-    way = pd.DataFrame([d for d in data['elements'] if d['type'] == 'way']).set_index('id')
-    nodes = pd.DataFrame([d for d in data['elements'] if d['type'] == 'node']).set_index('id')
-
-    # Convert elements to GeoPandas 
-    way_exploded = way.explode('nodes').merge(nodes[['lat','lon']], left_on='nodes', right_index=True, how='left')
-    geom = way_exploded.groupby('id')[['lon', 'lat']].apply(lambda x: LineString(x.values))
-    geom.name = 'geometry'
-    way = gpd.GeoDataFrame(way.join(geom))
-
-    # Filter tags and write networks
-    print("Write (way.geojson) ...")
-    tags = pd.DataFrame.from_records(way['tags'].values, index=way['tags'].index)
-    cols = event['tags']
-    way_tags = way.drop(columns=['nodes', 'tags'], errors='ignore').join(tags[cols])
-
-    # SOME CLEANING ON THE ONEWAY ... Work In Progress
-    way_tags['oneway'].fillna('no', inplace=True)
-    way_tags['oneway'] = way_tags['oneway'].replace('yes', True).replace('no', False).replace('-1', False).replace(-1, False).replace('alternating',False).replace('reversible',False)
-    if len(way_tags['oneway'].unique())>2:
-        print('WARNING: some oneway tags are not defined',way_tags.unique())
-    way_tags.to_file(os.path.join(wd, 'way.geojson'))
+    # Overpass API request  
+    overpass_query = get_overpass_query(bbox, highway_list, cycleway_list)
+    fetch_overpass(overpass_query, columns, wd)
+    
 
     # Create links and nodes netowrks from ways of OSM
     print("Convert ways to links and node ...")
+    # do not split direction. we need to fix the oneway tag first.
     links, nodes = get_links_and_nodes(os.path.join(wd, 'way.geojson'), split_direction=False)
     nodes = nodes.set_crs(links.crs)
+
+
+    #test
+    if "cycleway" in highway_list:
+        links = test_bicycle_process(links,cycleway_columns,highway_list)
+
+
+
+    # convert oneway to bool.
+    links = clean_oneway(links)
 
     #remove string in maxspeed
     links = clean_maxspeed(links)
@@ -98,28 +95,25 @@ def handler(event, context):
     links, nodes = main_strongly_connected_component(links, nodes)
 
     print('removing list in columns ...')
-    links['maxspeed'] = links['maxspeed'].apply(lambda x: process_list_in_col(x,float,np.nanmean))
-    links['lanes'] = links['lanes'].apply(lambda x: process_list_in_col(x,float,np.nanmean)).apply(lambda x: np.floor(x))
+    links['maxspeed'] = links['maxspeed'].apply(lambda x: process_list_in_col(x, float, np.nanmean))
+    links['lanes'] = links['lanes'].apply(lambda x: process_list_in_col(x, float, lambda x: np.floor(np.nanmean(x))))
+    if 'cycleway' in links.columns:
+        # sort and take last. sorted = [no,shared,yes]. so yes or shared if there is a list
+        links['cycleway'] = links['cycleway'].apply(lambda x: process_list_in_col(x,str,lambda x: np.sort(x)[-1]))
+
     for col in ['id', 'type', 'highway','name','surface']:
         links[col] = links[col].apply(lambda x: remove_list_in_col(x,'first'))
+
+
+    # Fill NaN with mean values by highway
+    links = fill_na_col(links, 'highway', 'maxspeed', np.mean)
+    links = fill_na_col(links, 'highway', 'lanes', lambda x: np.floor(np.mean(x)))
 
     # Add length
     print("Write Links and Nodes ...")
     epsg = get_epsg(nodes.iloc[0]['geometry'].y, nodes.iloc[0]['geometry'].x)
     links['length'] = links.to_crs(epsg).length
 
-    # Add Speed
-    try:
-        speed_dict = links.dropna().groupby('highway')['maxspeed'].agg(np.mean).to_dict()
-        links.loc[~np.isfinite(links['maxspeed']),'maxspeed'] = links.loc[~np.isfinite(links['maxspeed']),'highway'].apply(lambda x: speed_dict.get(x))
-    except:
-        print('fail to convert NaN maxspeed to the average max speed (by highway)')
-    try:
-        links['lanes'] = pd.to_numeric(links['lanes'])
-        lane_dict = links.groupby('highway')['lanes'].agg(np.nanmean).apply(lambda x: np.floor(x)).to_dict()
-        links.loc[~np.isfinite(links['lanes']),'lanes'] = links.loc[~np.isfinite(links['lanes']),'highway'].apply(lambda x: lane_dict.get(x))
-    except:
-        print('fail to convert NaN Lane to the average lanes (by highway)')
     # Add Time
     links['time'] = links['length']/(links['maxspeed']*1000/3600)
     links = links.rename(columns = {'maxspeed' : 'speed'})

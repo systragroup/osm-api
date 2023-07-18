@@ -9,7 +9,7 @@ import time
 from scipy.interpolate import RegularGridInterpolator, NearestNDInterpolator
 
 
-def get_elevation_from_srtm(tdf:gpd.GeoDataFrame) -> Dict[Any,int]:
+def get_elevation_from_srtm(tdf: gpd.GeoDataFrame) -> Dict[Any,int]:
     '''
     find elevation value for every points in a GeoDataFrame
 
@@ -92,7 +92,7 @@ def get_file_name(latitude: float, longitude: float) -> str:
 
 
 
-def fetch_data(url: str) -> None:
+def fetch_data(url: str, wd: str = '/tmp') -> None:
     '''
     fetch SRTM zip file and extract it as tmp/<fileName>.hgt
 
@@ -109,15 +109,15 @@ def fetch_data(url: str) -> None:
         response = requests.get(url)
         buffer = BytesIO(response.content)
         with zipfile.ZipFile(buffer, "r") as zip_ref:
-            zip_ref.extractall('/tmp')
-            print('file save tmp/')
+            zip_ref.extractall(wd)
+            print('file save to', wd)
     except:
         time.sleep(2)
         response = requests.get(url)
         buffer = BytesIO(response.content)
         with zipfile.ZipFile(buffer, "r") as zip_ref:
-            zip_ref.extractall('/tmp')
-            print('file save to tmp/')
+            zip_ref.extractall(wd)
+            print('file save to',)
     
 
 
