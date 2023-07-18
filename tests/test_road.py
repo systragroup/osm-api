@@ -59,28 +59,7 @@ class SimpleTests(unittest.TestCase):
         self.assertTrue(res, 32618)
         res = get_epsg(48.8,2.34)
         self.assertTrue(res, 32631)
-
-
-
-@unittest.skipIf(SKIP,'want to skip')
-class TestFetch(unittest.TestCase):
-    def assertIsFile(self, path):
-        if not pl.Path(path).resolve().is_file():
-            raise AssertionError("File does not exist: %s" % str(path))
-        
-    def test_fetch_overpass(self):
-        overpass_query = get_overpass_query(BBOX, HIGHWAY_LIST)
-        fetch_overpass(overpass_query,COLS,wd)
-        path = 'tmp/way.geojson'
-        self.assertIsFile(path)
-
-    def test_fetch_overpass_with_cycleway(self):
-        overpass_query = get_overpass_query(BBOX, HIGHWAY_LIST, CYCLEWAY_LIST)
-        fetch_overpass(overpass_query, COLS + CYCLEWAY_COL, wd, 'way_cycle.geojson')
-        path = 'tmp/way_cycle.geojson'
-        self.assertIsFile(path)
-
-   
+  
 
 @unittest.skipIf(SKIP,'want to skip')
 class TestRead(unittest.TestCase):

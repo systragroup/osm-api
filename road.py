@@ -477,3 +477,23 @@ def fill_na_col(links: gpd.GeoDataFrame,
     val_dict = links[[group,col]].dropna().groupby(group)[col].agg(agg_func).to_dict()
     links.loc[~np.isfinite(links[col]),col] = links.loc[~np.isfinite(links[col]),group].apply(lambda x: val_dict.get(x))
     return links
+
+
+def get_columns_with_list(df: pd.DataFrame) -> list:
+    '''
+    return the list of column that contain list in them.
+    '''
+    
+    def _contain_list(df,col):
+        for val in df[col].values:
+            if type(val)==list:
+                return True
+        else:
+            return False
+    
+    object_columns = df.columns[(df.dtypes==object).values]
+    res=[]
+    for col in object_columns:
+        if _contain_list(df,col):
+            res.append(col)
+    return res

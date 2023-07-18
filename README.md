@@ -18,6 +18,22 @@ Scripts to fetch and simplify OSM network.
 ```bash
 python tests/run_tests.py
 ``` 
+for coverage report:
+
+```bash
+pip install coverage
+``` 
+```bash
+coverage run -m unittest discover
+```
+```bash
+coverage report
+```
+for a nicer report:
+```bash
+coverage html
+```
+
 
 ## TEST Lambda function
 
