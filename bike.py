@@ -28,8 +28,8 @@ def test_bicycle_process(links,cycleway_columns,highway_list):
             bike_dict[string]='shared'
         elif 'yes' in val[1:]:
             bike_dict[string]='yes'
-        elif  'share' in val[1:]:
-            bike_dict[string]='share'
+        elif  'shared' in val[1:]:
+            bike_dict[string]='shared'
         else :
             bike_dict[string]='no'
     links['cycleway'] = links['combine_cycle_tag'].apply(lambda x: bike_dict.get(x))
@@ -39,6 +39,9 @@ def test_bicycle_process(links,cycleway_columns,highway_list):
     #remove highway not asked for. (because of cycleway)
     links = links[links['highway'].isin(highway_list)]
     links = links.drop(columns='combine_cycle_tag')
+    #links = get_bicycle_oneway(links)
+    links['cycleway_reverse'] = links['cycleway']
+
     
     return links
 
@@ -58,8 +61,6 @@ def rename_bicycle_tags(links: gpd.GeoDataFrame, col:str,inplace: bool = True) -
 
     links[prefix + col] = links[prefix + col].apply(lambda x: cycle_dict.get(x, 'yes'))
     print(list(links[prefix + col].unique()))
-
-    links = get_bicycle_oneway(links)
 
     return links
 

@@ -46,8 +46,6 @@ def get_epsg(lat: float, lon: float) -> int:
       
     return int(32700 - round((45 + lat) / 90, 0) * 100 + round((183 + lon) / 6, 0))
 
-
-
 # buildindex
 def build_index(edges):
     nodelist = {e[0] for e in edges}.union({e[1] for e in edges})
@@ -207,12 +205,14 @@ def get_links_and_nodes(geojson_file: str, split_direction: bool = False) -> Tup
 
     links = gpd.read_file(json.dumps(road))
     links.index = ['road_link_%i' % i for i in range(len(links))]
+    links = links.drop(columns=['id','type'])
     return links, nodes
 
 def main_strongly_connected_component(links: gpd.GeoDataFrame,
                                        nodes: gpd.GeoDataFrame = None, 
                                        split_direction: bool = False) -> gpd.GeoDataFrame:
     '''
+    use split direction if the links are not duplicated (if there is 1 link for oneway=False)
     remove cul-de-sac
     '''
     graph = nx.DiGraph()
@@ -449,6 +449,15 @@ def clean_oneway(links: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         print('WARNING: some oneway tags are not defined',links.unique())    
     return links
 
+def clean_lanes(links: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    '''
+    remove semicolon (ex lanes = 1;2) and average the result (1;2 -> 1.5).
+    transform everything to float. NaN if string
+    '''
+    semicolon_index = links['lanes'].astype(str).str.contains(';')
+    links.loc[semicolon_index,'lanes'] = links.loc[semicolon_index,'lanes'].apply(lambda x: np.mean([float(el) for el in x.split(';')]))
+    links['lanes'] = links['lanes'].apply(pd.to_numeric, errors='coerce')
+    return links
 
 
 

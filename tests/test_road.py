@@ -128,7 +128,7 @@ class TestSimplify(unittest.TestCase):
         length = len(self.links)
         links = simplify(self.links)
         # should contain list as we merge.
-        self.assertTrue(any([type(val)==list for val in links['id'].values]))
+        self.assertTrue(any([type(val)==list for val in links['maxspeed'].values]))
         # should have less links
         self.assertGreater(length, len(links))
 

@@ -7,6 +7,9 @@ from io import BytesIO
 import zipfile
 import time
 from scipy.interpolate import RegularGridInterpolator, NearestNDInterpolator
+import os
+URL_LIST_PATH = os.path.join(os.path.dirname(__file__), 'url_list.json')
+
 
 
 def get_elevation_from_srtm(tdf: gpd.GeoDataFrame) -> Dict[Any,int]:
@@ -37,7 +40,7 @@ def get_elevation_from_srtm(tdf: gpd.GeoDataFrame) -> Dict[Any,int]:
     df['file_name'] = df.apply(lambda x: get_file_name(x['lat'],x['lon']),axis=1)
 
     # read dict [fileName : url] from srtm.py python librairy
-    with open('url_list.json') as file:
+    with open(URL_LIST_PATH) as file:
         data = json.load(file)
 
     el_dict = {}
