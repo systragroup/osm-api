@@ -455,7 +455,10 @@ def clean_lanes(links: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     transform everything to float. NaN if string
     '''
     semicolon_index = links['lanes'].astype(str).str.contains(';')
-    links.loc[semicolon_index,'lanes'] = links.loc[semicolon_index,'lanes'].apply(lambda x: np.mean([float(el) for el in x.split(';')]))
+    try:
+        links.loc[semicolon_index,'lanes'] = links.loc[semicolon_index,'lanes'].apply(lambda x: np.mean([float(el) for el in x.split(';')]))
+    except:
+        pass
     links['lanes'] = links['lanes'].apply(pd.to_numeric, errors='coerce')
     return links
 

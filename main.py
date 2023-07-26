@@ -41,6 +41,10 @@ def osm_simplify(links: gpd.GeoDataFrame,
                  highway_list: List[str], 
                  add_elevation: bool = True,
                  split_direction : bool = False):
+    
+    # simplify Linestring geometry. (remove anchor nodes)
+    links.geometry = links.simplify(0.00005)
+
     #test
     if "cycleway" in links.columns:
         links = test_bicycle_process(links, CYCLEWAY_COLUMNS, highway_list)
