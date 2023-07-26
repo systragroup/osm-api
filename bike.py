@@ -6,6 +6,10 @@ from typing import *
 
 
 def test_bicycle_process(links,cycleway_columns,highway_list):
+    # if tag is non existant. add it
+    for tag in cycleway_columns:
+        if tag not in links.columns:
+            links[tag] = 'no'
     links = rename_bicycle_tags(links,'cycleway')
     links = rename_bicycle_tags(links,'cycleway:both')
     links = rename_bicycle_tags(links,'cycleway:left')
