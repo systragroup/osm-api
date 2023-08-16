@@ -23,6 +23,8 @@ CYCLEWAY_COL = ['cycleway', 'cycleway:both', 'cycleway:left','cycleway:right']
 CYCLEWAY_LIST = ["lane", "opposite", "opposite_lane", "track", "opposite_track", 
                 "share_busway", "opposite_share_busway", "shared_lane"]
 
+POLY = [[-74.0204, 40.6961], [-74.0110, 40.7506], [-73.9673, 40.7444], [-73.9671, 40.7296], [-73.9745, 40.70946], [-73.9941, 40.7067], [-74.0204, 40.6961]]
+
 
 wd = 'tmp/'
 
@@ -89,11 +91,13 @@ class TestMainHighway(unittest.TestCase):
     def test_osm_simplify_3(self):
         add_elevation=True
         split_direction=False
-        links, nodes = osm_importer(BBOX,HIGHWAY_LIST, None, wd)
+        bbox = get_bbox(POLY)
+        links, nodes = osm_importer(bbox,HIGHWAY_LIST, None, wd)
+        links = gpd.sjoin(links, gpd.GeoDataFrame(geometry=[Polygon(POLY)],crs=4326), how='inner', op='intersects').drop(columns='index_right')
         links, nodes = osm_simplify(links, nodes, HIGHWAY_LIST, add_elevation, split_direction)
         expected_res = ['highway', 'speed', 'lanes', 'name', 'oneway', 'surface', 'a', 'b', 'geometry', 'length', 'time', 'incline']
+        print(links.columns)
         self.assertSetEqual( set(links.columns),set(expected_res))
-        print(nodes.columns)
         self.assertSetEqual( set(nodes.columns),set(['geometry','elevation']))
         self.assertTrue(True in links['oneway'].unique())
 

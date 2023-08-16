@@ -54,6 +54,12 @@ class TestFetch(unittest.TestCase):
         path = 'tmp/way_cycle.geojson'
         self.assertIsFile(path)
 
+    def test_get_bbox(self):
+        poly = [ [-74.021412, 40.696947], [-73.998055, 40.7603484], [-74.021472, 40.696069] ]
+        bbox = get_bbox(poly)
+        self.assertEqual(bbox,(40.696069, -74.021472, 40.7603484, -73.998055))
+
+
 
 if __name__ == '__main__':
     if not os.path.exists('tmp'):

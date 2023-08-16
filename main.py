@@ -2,9 +2,10 @@ import os
 import numpy as np
 from road import *
 from bike import *
-from overpass import fetch_overpass, get_overpass_query
+from overpass import fetch_overpass, get_overpass_query, get_bbox
 from elevation import get_elevation_from_srtm, calc_incline
 from typing import *
+from shapely.geometry import Polygon
 
 CYCLEWAY_COLUMNS = ['cycleway:both', 'cycleway:left','cycleway:right']
 HIGHWAY_COLUMNS = ['highway', 'maxspeed', 'lanes', 'name', 'oneway', 'surface']
@@ -121,7 +122,8 @@ def osm_simplify(links: gpd.GeoDataFrame,
 def handler(event, context):
     '''
     event keys :
-    bbox : list[float]
+    bbox :(if not using poly) list[float] 
+    poly :(if not using bbox) list [[float,float]]
     elevation: bool
     highway : list[str]
     callID : str
@@ -130,20 +132,22 @@ def handler(event, context):
     print(event)
     bucket_name = os.environ['BUCKET_NAME']
     wd = '/tmp/'
-    # add elevation arg. if not provided. set to True
-    if 'elevation' in (event.keys()):
-        add_elevation = event['elevation']
-    else:
-        add_elevation = True
 
     if 'splitDirection' in (event.keys()):
         split_direction = event['splitDirection']
     else:
         split_direction = False
+    
+    add_elevation = event['elevation']
 
-    # get bbox and requested highway
-    bbox = event['bbox']
-    bbox = (*bbox,) # list to tuple
+    # get bbox or a polygon
+    if 'poly' in (event.keys()):
+        poly  = event['poly']
+        bbox = get_bbox(poly)
+    else:
+        bbox = event['bbox']
+        bbox = (*bbox,) # list to tuple
+        # get requested highway
     highway_list = event['highway']
     cycleway_list = None
     if "cycleway" in highway_list:
@@ -151,6 +155,11 @@ def handler(event, context):
                         "share_busway", "opposite_share_busway", "shared_lane"]
 
     links, nodes = osm_importer(bbox, highway_list, cycleway_list, wd)
+
+    if 'poly' in (event.keys()):
+        print('restrict links to polygon')
+        links = gpd.sjoin(links, gpd.GeoDataFrame(geometry=[Polygon(poly)],crs=4326), how='inner', op='intersects').drop(columns='index_right')
+    
     links, nodes = osm_simplify(links, nodes, highway_list, add_elevation, split_direction)
     
     # Outputs

@@ -77,3 +77,21 @@ def fetch_overpass(overpassQuery: str,
     #if len(way_tags['oneway'].unique())>2:
     #    print('WARNING: some oneway tags are not defined',way_tags.unique())
     way_tags.to_file(os.path.join(wd, filename),driver='GeoJSON')
+
+def get_bbox(ls: List[List[float]]) -> Tuple[float,float,float,float]:
+    '''
+    from a list of coords [[lon, lat], [lon, lat]], ...] get bbox around
+
+    parameters
+    ----------
+    ls: list of coords
+
+    returns
+    ----------
+    tuple (lat_min, lon_min, lat_max, lon_max)
+    '''
+    xmin = min([coord[0] for coord in ls])
+    xmax = max([coord[0] for coord in ls])
+    ymin = min([coord[1] for coord in ls])
+    ymax = max([coord[1] for coord in ls])
+    return (ymin, xmin, ymax, xmax)
