@@ -10,8 +10,10 @@ Scripts to fetch and simplify OSM network.
 
 ## Deploy
 
-1) See instruction on AWS ECR to deploy Docker image
-2) Update Lambda function image
+```bash
+./update-lambda.sh
+``` 
+
 
 ## Unit Tests
 
