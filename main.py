@@ -14,12 +14,15 @@ HIGHWAY_COLUMNS = ['highway', 'maxspeed', 'lanes', 'name', 'oneway', 'surface']
 def osm_importer(bbox:Tuple[float,float,float,float], 
                  highway_list: List[str],
                  cycleway_list: Optional[List[str]] = None,
+                 extended_cycleway: Optional[bool] = False,
                  wd: str = '/tmp/')-> Tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
 
     columns = HIGHWAY_COLUMNS.copy()
     # if cycleway is requested. add cyclway tags to the request.
     # https://wiki.openstreetmap.org/wiki/Map_features#When_cycleway_is_drawn_as_its_own_way_(see_Bicycle)
-    if cycleway_list:
+    if extended_cycleway:
+        columns += ['cycleway']
+    elif cycleway_list:
         columns += CYCLEWAY_COLUMNS
         columns += ['cycleway']
 
@@ -41,16 +44,20 @@ def osm_simplify(links: gpd.GeoDataFrame,
                  nodes: gpd.GeoDataFrame, 
                  highway_list: List[str], 
                  add_elevation: bool = True,
-                 split_direction : bool = False):
+                 split_direction : bool = False,
+                 extended_cycleway : bool = False):
     
     # simplify Linestring geometry. (remove anchor nodes)
     links.geometry = links.simplify(0.00005)
 
-    #test
-    if "cycleway" in links.columns:
+    if extended_cycleway:
+        links = extended_bicycle_process(links)
+    elif "cycleway" in links.columns:
         links = test_bicycle_process(links, CYCLEWAY_COLUMNS, highway_list)
+    else :
+        pass
 
-
+    links = links.drop(columns='tags')
     # convert oneway to bool.
     links = clean_oneway(links)
 
@@ -126,6 +133,7 @@ def handler(event, context):
     poly :(if not using bbox) list [[float,float]]
     elevation: bool
     highway : list[str]
+    extended_cycleway: bool
     callID : str
 
     '''
@@ -137,6 +145,11 @@ def handler(event, context):
         split_direction = event['splitDirection']
     else:
         split_direction = False
+
+    if  'extended_cycleway' in event.keys():
+        extended_cycleway = event['extended_cycleway']
+    else:
+        extended_cycleway = False
     
     add_elevation = event['elevation']
 
@@ -149,18 +162,21 @@ def handler(event, context):
         bbox = (*bbox,) # list to tuple
         # get requested highway
     highway_list = event['highway']
+    
     cycleway_list = None
     if "cycleway" in highway_list:
         cycleway_list = ["lane", "opposite", "opposite_lane", "track", "opposite_track", 
                         "share_busway", "opposite_share_busway", "shared_lane"]
+    if extended_cycleway:
+        cycleway_list = ["*"]
 
-    links, nodes = osm_importer(bbox, highway_list, cycleway_list, wd)
+    links, nodes = osm_importer(bbox, highway_list, cycleway_list, extended_cycleway, wd)
 
     if 'poly' in (event.keys()):
         print('restrict links to polygon')
         links = gpd.sjoin(links, gpd.GeoDataFrame(geometry=[Polygon(poly)],crs=4326), how='inner', op='intersects').drop(columns='index_right')
     
-    links, nodes = osm_simplify(links, nodes, highway_list, add_elevation, split_direction)
+    links, nodes = osm_simplify(links, nodes, highway_list, add_elevation, split_direction,extended_cycleway)
     
     # Outputs
     print('Saving on S3')

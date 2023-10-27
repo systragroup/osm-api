@@ -68,8 +68,7 @@ def fetch_overpass(overpassQuery: str,
     print("Write (way.geojson) ...")
     tags = pd.DataFrame.from_records(way['tags'].values, index=way['tags'].index)
     cols = [col for col in cols if col in tags.columns]
-    print(cols)
-    way_tags = way.drop(columns=['nodes', 'tags'], errors='ignore').join(tags[cols])
+    way_tags = way.drop(columns=['nodes'], errors='ignore').join(tags[cols])
 
     # SOME CLEANING ON THE ONEWAY ... Work In Progress
     #way_tags['oneway'].fillna('no', inplace=True)

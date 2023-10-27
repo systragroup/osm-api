@@ -36,7 +36,7 @@ class TestMainCycleway(unittest.TestCase):
     def test_osm_simplify_1(self):
         add_elevation=True
         split_direction=False
-        links, nodes = osm_importer(BBOX,HIGHWAY_LIST+['cycleway'],CYCLEWAY_LIST,wd)
+        links, nodes = osm_importer(BBOX,HIGHWAY_LIST+['cycleway'],CYCLEWAY_LIST,False,wd)
         links, nodes = osm_simplify(links, nodes, HIGHWAY_LIST, add_elevation, split_direction)
         expected_res = ['highway', 'speed', 'lanes', 'name', 'oneway', 'surface', 'cycleway', 'a', 'b', 'geometry', 'cycleway_reverse', 'length', 'time', 'incline']
         self.assertSetEqual( set(links.columns),set(expected_res))
@@ -46,7 +46,7 @@ class TestMainCycleway(unittest.TestCase):
     def test_osm_simplify_2(self):
         add_elevation=False
         split_direction=True
-        links, nodes = osm_importer(BBOX,HIGHWAY_LIST+['cycleway'],CYCLEWAY_LIST,wd)
+        links, nodes = osm_importer(BBOX,HIGHWAY_LIST+['cycleway'],CYCLEWAY_LIST,False,wd)
         links, nodes = osm_simplify(links, nodes, HIGHWAY_LIST, add_elevation, split_direction)
         expected_res = ['highway', 'speed', 'lanes', 'name', 'oneway', 'surface', 'cycleway', 'a', 'b', 'geometry', 'cycleway_reverse', 'length', 'time']
         self.assertSetEqual( set(links.columns),set(expected_res))
@@ -56,13 +56,25 @@ class TestMainCycleway(unittest.TestCase):
     def test_osm_simplify_3(self):
         add_elevation=True
         split_direction=False
-        links, nodes = osm_importer(BBOX,HIGHWAY_LIST+['cycleway'],CYCLEWAY_LIST,wd)
+        links, nodes = osm_importer(BBOX,HIGHWAY_LIST+['cycleway'],CYCLEWAY_LIST,False,wd)
         links, nodes = osm_simplify(links, nodes, HIGHWAY_LIST, add_elevation, split_direction)
         expected_res = ['highway', 'speed', 'lanes', 'name', 'oneway', 'surface', 'cycleway', 'a', 'b', 'geometry', 'cycleway_reverse', 'length', 'time', 'incline']
         self.assertSetEqual( set(links.columns),set(expected_res))
         self.assertSetEqual( set(nodes.columns),set(['geometry','elevation']))
 
         self.assertTrue(True in links['oneway'].unique())
+
+    def test_osm_simplify_4(self):
+            add_elevation=True
+            split_direction=False
+            extended_cycleway=True
+            links, nodes = osm_importer(BBOX,HIGHWAY_LIST+['cycleway'],CYCLEWAY_LIST,extended_cycleway,wd)
+            links, nodes = osm_simplify(links, nodes, HIGHWAY_LIST, add_elevation, split_direction)
+            expected_res = ['highway', 'speed', 'lanes', 'name', 'oneway', 'surface', 'cycleway', 'a', 'b', 'geometry', 'cycleway_reverse', 'length', 'time', 'incline']
+            self.assertSetEqual( set(links.columns),set(expected_res))
+            self.assertSetEqual( set(nodes.columns),set(['geometry','elevation']))
+
+            self.assertTrue(True in links['oneway'].unique())
 
 @unittest.skipIf(SKIP,'want to skip')
 class TestMainHighway(unittest.TestCase):
@@ -71,7 +83,7 @@ class TestMainHighway(unittest.TestCase):
     def test_osm_simplify_1(self):
         add_elevation=True
         split_direction=False
-        links, nodes = osm_importer(BBOX,HIGHWAY_LIST, None, wd)
+        links, nodes = osm_importer(BBOX,HIGHWAY_LIST, None, False, wd)
         links, nodes = osm_simplify(links, nodes, HIGHWAY_LIST, add_elevation, split_direction)
         expected_res = ['highway', 'speed', 'lanes', 'name', 'oneway', 'surface', 'a', 'b', 'geometry', 'length', 'time', 'incline']
         self.assertSetEqual( set(links.columns),set(expected_res))
@@ -81,7 +93,7 @@ class TestMainHighway(unittest.TestCase):
     def test_osm_simplify_2(self):
         add_elevation=False
         split_direction=True
-        links, nodes = osm_importer(BBOX,HIGHWAY_LIST, None, wd)
+        links, nodes = osm_importer(BBOX,HIGHWAY_LIST, None, False, wd)
         links, nodes = osm_simplify(links, nodes, HIGHWAY_LIST, add_elevation, split_direction)
         expected_res = ['highway', 'speed', 'lanes', 'name', 'oneway', 'surface', 'a', 'b', 'geometry', 'length', 'time']
         self.assertSetEqual( set(links.columns),set(expected_res))
@@ -92,7 +104,7 @@ class TestMainHighway(unittest.TestCase):
         add_elevation=True
         split_direction=False
         bbox = get_bbox(POLY)
-        links, nodes = osm_importer(bbox,HIGHWAY_LIST, None, wd)
+        links, nodes = osm_importer(bbox,HIGHWAY_LIST, None, False, wd)
         links = gpd.sjoin(links, gpd.GeoDataFrame(geometry=[Polygon(POLY)],crs=4326), how='inner', op='intersects').drop(columns='index_right')
         links, nodes = osm_simplify(links, nodes, HIGHWAY_LIST, add_elevation, split_direction)
         expected_res = ['highway', 'speed', 'lanes', 'name', 'oneway', 'surface', 'a', 'b', 'geometry', 'length', 'time', 'incline']

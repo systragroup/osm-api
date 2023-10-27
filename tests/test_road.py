@@ -117,6 +117,7 @@ class TestSimplify(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         links, nodes = get_links_and_nodes(os.path.join(wd, 'way.geojson'), split_direction=False)
+        links = links.drop(columns='tags')
         nodes = nodes.set_crs(links.crs)
         links = clean_oneway(links)
         links = clean_maxspeed(links)
@@ -157,6 +158,7 @@ class TestListCleaning(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         links, nodes = get_links_and_nodes(os.path.join(wd, 'way.geojson'), split_direction=False)
+        links = links.drop(columns='tags')
         nodes = nodes.set_crs(links.crs)
         links = clean_oneway(links)
         links = clean_maxspeed(links)
