@@ -124,9 +124,9 @@ def classify_cycleway_tags(df):
         if osmTags.find('"bicycle": "yes"')>=0 or osmTags.find('"bicycle": "designated"')>=0:
             return "Pedestrian path/street with cycling allowed"
         else:
-            return "Pedestrian path/street with cycling not allowed"
+            return "no" #"Pedestrian path/street with cycling not allowed"
     elif highwayTag=="living_street":
-        return "shared zone"
+        return "Shared zone"
     elif highwayTag=="construction":
         if osmTags.find('"cycleway": "track"')>=0:
             return "Future cycleway"
@@ -151,7 +151,7 @@ def classify_cycleway_tags(df):
         osmTags.find('"cycleway:left:lane": "exclusive"')>=0 and \
         osmTags.find('"cycleway:left:buffer:right"')>=0 and \
         osmTags.find('"cycleway:left:buffer:left"')==-1):
-            return "buffered bike lane (road-side)" 
+            return "Buffered bike lane (road-side)" 
             
         elif osmTags.find('"cycleway:both": "lane"')>=0 and \
         (osmTags.find('"cycleway:both:lane": "exclusive"')>=0 or \
@@ -164,7 +164,7 @@ def classify_cycleway_tags(df):
         osmTags.find('"cycleway:left:lane": "exclusive"')>=0 and \
         osmTags.find('"cycleway:left:buffer:left"')>=0 and \
         osmTags.find('"cycleway:left:buffer:right"')==-1):
-            return "buffered bike lane (kerb-side)" 
+            return "Buffered bike lane (kerb-side)" 
             
         elif osmTags.find('"cycleway:both": "lane"')>=0 and \
         (osmTags.find('"cycleway:both:lane": "exclusive"')>=0 or \
@@ -180,7 +180,7 @@ def classify_cycleway_tags(df):
         ((osmTags.find('"cycleway:left:buffer:left"')>=0 and \
         osmTags.find('"cycleway:left:buffer:right"')>=0) or \
         osmTags.find('"cycleway:left:buffer:both"')>=0)):
-            return "buffered bike lane (both sides)" 
+            return "Buffered bike lane (both sides)" 
             
         elif osmTags.find('"cycleway": "lane"')>=0 or \
         osmTags.find('"cycleway": "opposite_lane"')>=0 or \
