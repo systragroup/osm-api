@@ -56,17 +56,18 @@ def rename_bicycle_tags(links: gpd.GeoDataFrame, col:str,inplace: bool = True) -
     replace tags with no, shared or yes.
     inplace = False will create new column with prefix agg_
     '''
+    print('original values : ',links[col].unique())
     prefix = '' if inplace else 'agg_'
     links[prefix + col] = links[col]
     # fill NaN with no
-    links.loc[links[prefix + col].astype('str')=='nan',prefix + col] = 'no'
+    links.loc[links[prefix + col].astype('str').str.lower().isin(['nan','none']),prefix + col] = 'no'
     cycle_dict={'no':'no', 
                 'shared':'shared',
                 'share_busway':'shared', 
                 'shared_lane':'shared'}
 
     links[prefix + col] = links[prefix + col].apply(lambda x: cycle_dict.get(x, 'yes'))
-    print(list(links[prefix + col].unique()))
+    print('rename as : ',list(links[prefix + col].unique()))
 
     return links
 

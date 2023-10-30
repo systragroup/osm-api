@@ -49,6 +49,8 @@ class TestMainCycleway(unittest.TestCase):
         links, nodes = osm_importer(BBOX,HIGHWAY_LIST+['cycleway'],CYCLEWAY_LIST,False,wd)
         links, nodes = osm_simplify(links, nodes, HIGHWAY_LIST, add_elevation, split_direction)
         expected_res = ['highway', 'speed', 'lanes', 'name', 'oneway', 'surface', 'cycleway', 'a', 'b', 'geometry', 'cycleway_reverse', 'length', 'time']
+        
+        self.assertSetEqual( set(links['cycleway'].unique()), set(['no','yes','shared']))
         self.assertSetEqual( set(links.columns),set(expected_res))
         self.assertSetEqual( set(nodes.columns),set(['geometry']))
         self.assertTrue(False not in links['oneway'].unique())
@@ -65,16 +67,16 @@ class TestMainCycleway(unittest.TestCase):
         self.assertTrue(True in links['oneway'].unique())
 
     def test_osm_simplify_4(self):
-            add_elevation=True
-            split_direction=False
-            extended_cycleway=True
-            links, nodes = osm_importer(BBOX,HIGHWAY_LIST+['cycleway'],CYCLEWAY_LIST,extended_cycleway,wd)
-            links, nodes = osm_simplify(links, nodes, HIGHWAY_LIST, add_elevation, split_direction)
-            expected_res = ['highway', 'speed', 'lanes', 'name', 'oneway', 'surface', 'cycleway', 'a', 'b', 'geometry', 'cycleway_reverse', 'length', 'time', 'incline']
-            self.assertSetEqual( set(links.columns),set(expected_res))
-            self.assertSetEqual( set(nodes.columns),set(['geometry','elevation']))
+        add_elevation=True
+        split_direction=False
+        extended_cycleway=True
+        links, nodes = osm_importer(BBOX,HIGHWAY_LIST+['cycleway'],CYCLEWAY_LIST,extended_cycleway,wd)
+        links, nodes = osm_simplify(links, nodes, HIGHWAY_LIST, add_elevation, split_direction)
+        expected_res = ['highway', 'speed', 'lanes', 'name', 'oneway', 'surface', 'cycleway', 'a', 'b', 'geometry', 'cycleway_reverse', 'length', 'time', 'incline']
+        self.assertSetEqual( set(links.columns),set(expected_res))
+        self.assertSetEqual( set(nodes.columns),set(['geometry','elevation']))
 
-            self.assertTrue(True in links['oneway'].unique())
+        self.assertTrue(True in links['oneway'].unique())
 
 @unittest.skipIf(SKIP,'want to skip')
 class TestMainHighway(unittest.TestCase):

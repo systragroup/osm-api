@@ -20,11 +20,13 @@ def osm_importer(bbox:Tuple[float,float,float,float],
     columns = HIGHWAY_COLUMNS.copy()
     # if cycleway is requested. add cyclway tags to the request.
     # https://wiki.openstreetmap.org/wiki/Map_features#When_cycleway_is_drawn_as_its_own_way_(see_Bicycle)
-    if extended_cycleway:
-        columns += ['cycleway']
-    elif cycleway_list:
-        columns += CYCLEWAY_COLUMNS
-        columns += ['cycleway']
+    if cycleway_list:
+        if extended_cycleway:
+            columns += ['cycleway']
+        else:
+            columns += CYCLEWAY_COLUMNS
+            columns += ['cycleway']
+
 
     # Start
 
@@ -50,12 +52,13 @@ def osm_simplify(links: gpd.GeoDataFrame,
     # simplify Linestring geometry. (remove anchor nodes)
     links.geometry = links.simplify(0.00005)
 
-    if extended_cycleway:
-        links = extended_bicycle_process(links)
-    elif "cycleway" in links.columns:
-        links = test_bicycle_process(links, CYCLEWAY_COLUMNS, highway_list)
-    else :
-        pass
+
+    if "cycleway" in links.columns: 
+        if extended_cycleway:
+            links = extended_bicycle_process(links)
+        else:
+            links = test_bicycle_process(links, CYCLEWAY_COLUMNS, highway_list)
+
 
     links = links.drop(columns='tags')
     # convert oneway to bool.
@@ -167,8 +170,8 @@ def handler(event, context):
     if "cycleway" in highway_list:
         cycleway_list = ["lane", "opposite", "opposite_lane", "track", "opposite_track", 
                         "share_busway", "opposite_share_busway", "shared_lane"]
-    if extended_cycleway:
-        cycleway_list = ["*"]
+        if extended_cycleway:
+            cycleway_list = ["*"]
 
     links, nodes = osm_importer(bbox, highway_list, cycleway_list, extended_cycleway, wd)
 
