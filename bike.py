@@ -247,7 +247,7 @@ def classify_cycleway_tags_with_direction(df):
     if highwayTag=='cycleway':
         if  osmTags.find('"foot": "no"')>=0 and \
         osmTags.find('"oneway": "yes"')>=0:
-            return ("Dedicated bike path","No")
+            return ("No","Dedicated bike path")
         elif osmTags.find('"foot": "no"')>=0:
             return "Dedicated bike path"
         else:
@@ -276,15 +276,19 @@ def classify_cycleway_tags_with_direction(df):
         else:
             return "Future link"
     else:
-        if osmTags.find('"cycleway": "track"')>=0 or \
+        if (osmTags.find('"cycleway": "track"')>=0 or \
         osmTags.find('"cycleway": "opposite_track"')>=0 or \
-        osmTags.find('"cycleway:both": "track"')>=0 :
+        osmTags.find('"cycleway:both": "track"')>=0 or \
+        (osmTags.find('"cycleway:left": "track"')>=0 ) and (~osmTags.find('"cycleway:left:oneway": "yes"')>=0) or \
+        (osmTags.find('"cycleway:right": "track"')>=0 ) and (~osmTags.find('"cycleway:right:oneway": "yes"')>=0)) and \
+        osmTags.find('"oneway:bicycle": "yes"')==-1 :
             return "Protected bike lane"
-        
         else:
-            if osmTags.find('"cycleway:left": "track"')>=0:
+            if osmTags.find('"cycleway:left": "track"')>=0 or \
+                osmTags.find('"cycleway:left": "opposite_track"')>=0:
                 res[0]="Protected bike lane"
-            if osmTags.find('"cycleway:right": "track"')>=0:
+            if osmTags.find('"cycleway:right": "track"')>=0 or \
+                osmTags.find('"cycleway:right": "opposite_track"')>=0:
                 res[1]="Protected bike lane"
             
         if osmTags.find('"cycleway:both": "lane"')>=0 and \
@@ -336,13 +340,20 @@ def classify_cycleway_tags_with_direction(df):
         osmTags.find('"cycleway:both": "lane"')>=0:
             if (osmTags.find('"cycleway:both": "lane"')>=0 and \
             (osmTags.find('"cycleway:both:lane": "advisory"')>=0 or \
-            osmTags.find('"cycleway:left:lane": "advisory"')>=0)) or\
-            osmTags.find('"cycleway:left": "lane"')>=0 and \
-            osmTags.find('"cycleway:left:lane": "advisory"')>=0:
+            osmTags.find('"cycleway:left:lane": "advisory"')>=0 or \
+            osmTags.find('"cycleway:right:lane": "advisory"')>=0)) or \
+            (osmTags.find('"cycleway:left": "lane"')>=0 and \
+            osmTags.find('"cycleway:left:lane": "advisory"')>=0) or \
+            (osmTags.find('"cycleway:right": "lane"')>=0 and \
+            osmTags.find('"cycleway:tight:lane": "advisory"')>=0)    :
                 if osmTags.find('"cycleway:left": "lane"')>=0 and \
                 osmTags.find('"cycleway:right": "no"')>=0 and \
                 osmTags.find('"cycleway:left:lane": "advisory"')>=0:
-                    return "Advisory bike lane (single side)"
+                     res[0] = "Advisory bike lane"
+                if osmTags.find('"cycleway:right": "lane"')>=0 and \
+                osmTags.find('"cycleway:left": "no"')>=0 and \
+                osmTags.find('"cycleway:right:lane": "advisory"')>=0:
+                     res[1] = "Advisory bike lane"   
                 else:
                     return "Advisory bike lane"
             elif osmTags.find('"cycleway:both:conditional"')>=0 or \
@@ -353,7 +364,8 @@ def classify_cycleway_tags_with_direction(df):
             else :
                 if osmTags.find('"cycleway": "lane"')>=0 or \
                 osmTags.find('"cycleway": "opposite_lane"')>=0 or \
-                osmTags.find('"cycleway:both": "lane"')>=0:
+                osmTags.find('"cycleway:both": "lane"')>=0 or \
+                osmTags.find('"oneway:bicycle": "yes"')==-1:
                     return "Painted bike lane" 
                 if osmTags.find('"cycleway:left": "lane"')>=0:
                     res[0] =  "Painted bike lane" 
