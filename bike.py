@@ -93,12 +93,15 @@ def get_bicycle_oneway(links: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 def extended_bicycle_process(links):
     links['tags'] = links['tags'].astype(str)
     links['tags'] = links['tags'].apply(lambda x: x.replace("'",'"'))
-    links['cycleway'] = links.apply(classify_cycleway_tags_with_direction, axis=1)
+    links['cycleway'] = links.apply(classify_cycleway_tags, axis=1)
+    # if classify_cycleway_tags
     links['cycleway_reverse'] = links['cycleway']
-    #links.loc[links['cycleway'] == "Dedicated oneway bike path",'cycleway_reverse'] = "No"
+    links.loc[links['cycleway'] == "Dedicated oneway bike path",'cycleway_reverse'] = "No"
+
+    # if classify_cycleway_tags_with direction
     # we have tuple(left,right). cycleway is right lane (in country whit right side driving)
-    links['cycleway_reverse'] = links['cycleway_reverse'].apply(lambda x: x[0] if type(x)==tuple  else x )
-    links['cycleway'] = links['cycleway'].apply(lambda x: x[1] if type(x)==tuple  else x )
+    # links['cycleway_reverse'] = links['cycleway_reverse'].apply(lambda x: x[0] if type(x)==tuple  else x )
+    # links['cycleway'] = links['cycleway'].apply(lambda x: x[1] if type(x)==tuple  else x )
 
     return links
 
