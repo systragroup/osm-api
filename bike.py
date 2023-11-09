@@ -96,7 +96,8 @@ def extended_bicycle_process(links):
     links['cycleway'] = links.apply(classify_cycleway_tags, axis=1)
     # if classify_cycleway_tags
     links['cycleway_reverse'] = links['cycleway']
-    links.loc[links['cycleway'] == "Dedicated oneway bike path",'cycleway_reverse'] = "No"
+    links.loc[links['cycleway'] == "Dedicated oneway bike path", 'cycleway_reverse'] = "No"
+    links.loc[links['cycleway'] == "Dedicated oneway bike path", 'cycleway'] = "Dedicated bike path"
 
     # if classify_cycleway_tags_with direction
     # we have tuple(left,right). cycleway is right lane (in country whit right side driving)
