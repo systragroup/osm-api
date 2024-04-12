@@ -70,8 +70,8 @@ class TestRead(unittest.TestCase):
             self.assertTrue(tag in links.columns)
         self.assertTrue(links.crs ==  4326)
         self.assertTrue(len(links) > 0)
-        self.assertEqual(links.index[0], 'road_link_0')
-        self.assertEqual(nodes.index[0], 'road_node_0')
+        self.assertEqual(links.index[0], 'rlink_0')
+        self.assertEqual(nodes.index[0], 'rnode_0')
 
     def test_get_links_and_nodes_with_cycleway(self):
         links, nodes = get_links_and_nodes(os.path.join(wd, 'way_cycle.geojson'), split_direction=False)
@@ -80,8 +80,8 @@ class TestRead(unittest.TestCase):
             self.assertTrue(tag in links.columns)
         self.assertTrue(links.crs ==  4326)
         self.assertTrue(len(links) > 0)
-        self.assertEqual(links.index[0], 'road_link_0')
-        self.assertEqual(nodes.index[0], 'road_node_0')
+        self.assertEqual(links.index[0], 'rlink_0')
+        self.assertEqual(nodes.index[0], 'rnode_0')
 
 @unittest.skipIf(SKIP,'want to skip')
 class TestCleaning(unittest.TestCase):

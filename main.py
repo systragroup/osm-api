@@ -114,7 +114,7 @@ def osm_simplify(links: gpd.GeoDataFrame,
 
     # reindex and remove ununsed nodes
     links = links.reset_index(drop=True)
-    links.index = 'road_link_'+links.index.astype(str)
+    links.index = 'rlink_'+links.index.astype(str)
     nodes_set = set(links['a']).union(set(links['b']))
     nodes = nodes.loc[list(nodes_set)].sort_index()
 

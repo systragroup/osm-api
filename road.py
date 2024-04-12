@@ -187,7 +187,7 @@ def get_links_and_nodes(geojson_file: str, split_direction: bool = False) -> Tup
     node_index = dict(
         zip(
             node_coordinates, 
-            ['road_node_%i' % i for i in range(len(node_coordinates))]
+            ['rnode_%i' % i for i in range(len(node_coordinates))]
         )
     )
     df = pd.DataFrame(node_index.items(), columns=['coordinates', 'index'])
@@ -204,7 +204,7 @@ def get_links_and_nodes(geojson_file: str, split_direction: bool = False) -> Tup
         f['properties']['b'] = node_index[last]
 
     links = gpd.read_file(json.dumps(road))
-    links.index = ['road_link_%i' % i for i in range(len(links))]
+    links.index = ['rlink_%i' % i for i in range(len(links))]
     links = links.drop(columns=['id','type'])
     return links, nodes
 
