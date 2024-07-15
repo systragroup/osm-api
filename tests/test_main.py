@@ -85,7 +85,7 @@ class TestMainHighway(unittest.TestCase):
     def test_osm_simplify_1(self):
         add_elevation=True
         split_direction=False
-        links, nodes = osm_importer(BBOX,HIGHWAY_LIST, None, False, wd)
+        links, nodes= osm_importer(BBOX,HIGHWAY_LIST, None, False, wd)
         links, nodes = osm_simplify(links, nodes, HIGHWAY_LIST, add_elevation, split_direction)
         expected_res = ['highway', 'speed', 'lanes', 'name', 'oneway', 'surface', 'a', 'b', 'geometry', 'length', 'time', 'incline']
         self.assertSetEqual( set(links.columns),set(expected_res))
@@ -107,7 +107,7 @@ class TestMainHighway(unittest.TestCase):
         split_direction=False
         bbox = get_bbox(POLY)
         links, nodes = osm_importer(bbox,HIGHWAY_LIST, None, False, wd)
-        links = gpd.sjoin(links, gpd.GeoDataFrame(geometry=[Polygon(POLY)],crs=4326), how='inner', op='intersects').drop(columns='index_right')
+        links = gpd.sjoin(links, gpd.GeoDataFrame(geometry=[Polygon(POLY)],crs=4326), how='inner', predicate='intersects').drop(columns='index_right')
         links, nodes = osm_simplify(links, nodes, HIGHWAY_LIST, add_elevation, split_direction)
         expected_res = ['highway', 'speed', 'lanes', 'name', 'oneway', 'surface', 'a', 'b', 'geometry', 'length', 'time', 'incline']
         print(links.columns)

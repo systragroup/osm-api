@@ -39,6 +39,7 @@ def osm_importer(bbox:Tuple[float,float,float,float],
     # do not split direction. we need to fix the oneway tag first.
     links, nodes = get_links_and_nodes(os.path.join(wd, 'way.geojson'), split_direction=False)
     nodes = nodes.set_crs(links.crs)
+    
 
     return links, nodes
 
@@ -177,7 +178,7 @@ def handler(event, context):
 
     if 'poly' in (event.keys()):
         print('restrict links to polygon')
-        links = gpd.sjoin(links, gpd.GeoDataFrame(geometry=[Polygon(poly)],crs=4326), how='inner', op='intersects').drop(columns='index_right')
+        links = gpd.sjoin(links, gpd.GeoDataFrame(geometry=[Polygon(poly)],crs=4326), how='inner', predicate='intersects').drop(columns='index_right')
     
     links, nodes = osm_simplify(links, nodes, highway_list, add_elevation, split_direction,extended_cycleway)
     

@@ -197,15 +197,26 @@ def get_links_and_nodes(geojson_file: str, split_direction: bool = False) -> Tup
     if split_direction:
         split_directions(road)
 
-    for f in road['features']:
-        first = tuple(f['geometry']['coordinates'][0])
-        last = tuple(f['geometry']['coordinates'][-1])
-        f['properties']['a'] = node_index[first]
-        f['properties']['b'] = node_index[last]
+    for feature in road['features']:
+        first = tuple(feature['geometry']['coordinates'][0])
+        last = tuple(feature['geometry']['coordinates'][-1])
+        feature['properties']['a'] = node_index[first]
+        feature['properties']['b'] = node_index[last]
 
-    links = gpd.read_file(json.dumps(road))
-    links.index = ['rlink_%i' % i for i in range(len(links))]
+    # need to remove tags as they are not readable by gpd. add them to a separate list.
+    tags = []
+    for feature in road['features']:
+        tags.append(feature['properties']['tags'])
+        del feature['properties']['tags']
+
+    links = gpd.read_file(json.dumps(road).replace(';',':'))
+    index_list = ['rlink_%i' % i for i in range(len(links))]
+    links.index = index_list
+    tags = {i:v for i,v in zip(index_list,tags)}
+    links['tags'] = links.index.map(tags)
+
     links = links.drop(columns=['id','type'])
+
     return links, nodes
 
 def main_strongly_connected_component(links: gpd.GeoDataFrame,
@@ -389,8 +400,8 @@ def simplify(links,cutoff = 10):
 
 
     # TODO: on a des multiLinestring. il faudrait mieux merger.
-    print(len(tlinks[tlinks['geometry'].apply(lambda x: x.type != 'LineString')]),'merged_links unmerged because the geometry became a multilinestring')
-    tlinks = tlinks[tlinks['geometry'].apply(lambda x: x.type=='LineString')]
+    print(len(tlinks[tlinks['geometry'].apply(lambda x: x.geom_type != 'LineString')]),'merged_links unmerged because the geometry became a multilinestring')
+    tlinks = tlinks[tlinks['geometry'].apply(lambda x: x.geom_type == 'LineString')]
 
     #merge tlinks back into links
     tlinks = gpd.GeoDataFrame(tlinks,crs=links.crs)
