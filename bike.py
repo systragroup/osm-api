@@ -1,29 +1,24 @@
 
 import geopandas as gpd
-import numpy as np
-import pandas as pd
-from typing import *
 
 
-def test_bicycle_process(links,cycleway_columns,highway_list):
+def test_bicycle_process(links, cycleway_columns, highway_list):
     # if tag is non existant. add it
     for tag in cycleway_columns:
         if tag not in links.columns:
             links[tag] = 'no'
-    links = rename_bicycle_tags(links,'cycleway')
-    links = rename_bicycle_tags(links,'cycleway:both')
-    links = rename_bicycle_tags(links,'cycleway:left')
-    links = rename_bicycle_tags(links,'cycleway:right')
+    links = rename_bicycle_tags(links, 'cycleway')
+    links = rename_bicycle_tags(links, 'cycleway:both')
+    links = rename_bicycle_tags(links, 'cycleway:left')
+    links = rename_bicycle_tags(links, 'cycleway:right')
 
-
-    links['combine_cycle_tag'] = links['cycleway'] +' '+ \
-                                    links['cycleway:both'] +' '+ \
-                                    links['cycleway:left'] +' '+ \
-                                    links['cycleway:right'] 
-
+    links['combine_cycle_tag'] = links['cycleway'] + ' ' + \
+        links['cycleway:both'] + ' ' + \
+        links['cycleway:left'] + ' ' + \
+        links['cycleway:right']
 
     # simple method. everything with a tag highway is an highway both side. using the road oneway.
-    bike_dict={}
+    bike_dict = {}
     for string in links['combine_cycle_tag'].unique():
         val = string.split(' ')
         if val[0]=='yes':

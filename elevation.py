@@ -1,8 +1,9 @@
 import geopandas as gpd
 import numpy as np
-from typing import *
+from typing import Dict, Any, Tuple, List
 import json
 import requests
+import logging
 from io import BytesIO
 import zipfile
 import time
@@ -10,9 +11,10 @@ from scipy.interpolate import RegularGridInterpolator, NearestNDInterpolator
 import os
 URL_LIST_PATH = os.path.join(os.path.dirname(__file__), 'url_list.json')
 
+log = logging.getLogger(__name__)
 
 
-def get_elevation_from_srtm(tdf: gpd.GeoDataFrame) -> Dict[Any,int]:
+def get_elevation_from_srtm(tdf: gpd.GeoDataFrame) -> Dict[Any, int]:
     '''
     find elevation value for every points in a GeoDataFrame
 
@@ -26,18 +28,17 @@ def get_elevation_from_srtm(tdf: gpd.GeoDataFrame) -> Dict[Any,int]:
     '''
     
     df = tdf.copy()
-    srtm = 'srtm3' # srtm1 is not working in montreal. only available in the US but the file exist in montreal...
-    arc_dict= {'srtm1':1,'srtm3':3}
-
+    srtm = 'srtm3'  # srtm1 is not working in montreal. only available in the US but the file exist in montreal...
+    arc_dict = {'srtm1': 1, 'srtm3': 3}
 
     # lon is est west
     # lat is north south
-    #get lon lat from geometry
-    lonlat_list = [ list((geom.xy[0][0], geom.xy[1][0])) for geom in df['geometry'].values ]
-    df[['lon','lat']] = lonlat_list
+    # get lon lat from geometry
+    lonlat_list = [list((geom.xy[0][0], geom.xy[1][0])) for geom in df['geometry'].values]
+    df[['lon', 'lat']] = lonlat_list
 
     # get eachPoint file to fetch
-    df['file_name'] = df.apply(lambda x: get_file_name(x['lat'],x['lon']),axis=1)
+    df['file_name'] = df.apply(lambda x: get_file_name(x['lat'], x['lon']), axis=1)
 
     # read dict [fileName : url] from srtm.py python librairy
     with open(URL_LIST_PATH) as file:
@@ -45,24 +46,16 @@ def get_elevation_from_srtm(tdf: gpd.GeoDataFrame) -> Dict[Any,int]:
 
     el_dict = {}
     for file in list(df['file_name'].unique()):
-
-        temp_df = df[df['file_name']==file].copy()
-
+        temp_df = df[df['file_name'] == file].copy()
         url = data[srtm][file]
-
         fetch_data(url)
-
-        alt, lat, lon = read_hgt_file('/tmp/{f}'.format(f=file),arc_dict[srtm])
-
+        alt, lat, lon = read_hgt_file('/tmp/{f}'.format(f=file), arc_dict[srtm])
         alt = fill_missing_elevation(alt)
-
-        temp_df['elevation'] = interpolate_elevation(temp_df['lon'].values,temp_df['lat'].values, alt, lon, lat)
-
+        temp_df['elevation'] = interpolate_elevation(temp_df['lon'].values, temp_df['lat'].values, alt, lon, lat)
         el_dict.update(temp_df['elevation'].to_dict())
 
-    #df['elevation'] = df.index.map(el_dict.get)
+    # df['elevation'] = df.index.map(el_dict.get)
     return el_dict
-
 
 
 def get_file_name(latitude: float, longitude: float) -> str:
@@ -94,7 +87,6 @@ def get_file_name(latitude: float, longitude: float) -> str:
     return file_name
 
 
-
 def fetch_data(url: str, wd: str = '/tmp') -> None:
     '''
     fetch SRTM zip file and extract it as tmp/<fileName>.hgt
@@ -113,17 +105,15 @@ def fetch_data(url: str, wd: str = '/tmp') -> None:
         buffer = BytesIO(response.content)
         with zipfile.ZipFile(buffer, "r") as zip_ref:
             zip_ref.extractall(wd)
-            print('file save to', wd)
+            log.info('file save to', wd)
     except:
         time.sleep(2)
         response = requests.get(url)
         buffer = BytesIO(response.content)
         with zipfile.ZipFile(buffer, "r") as zip_ref:
             zip_ref.extractall(wd)
-            print('file save to',)
+            log.info('file save to',)
     
-
-
 
 def read_hgt_file(hgt_file: str, arc: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]: 
     '''
@@ -141,24 +131,25 @@ def read_hgt_file(hgt_file: str, arc: int) -> Tuple[np.ndarray, np.ndarray, np.n
     lon (np.array) : vector (N X 1)
     '''
 
-    SAMPLES = int(3600/arc +1)
+    SAMPLES = int(3600 / arc + 1)
 
     filename = hgt_file.split('/')[-1]
 
     if filename.split('S')[0] != filename: lat0 = -int(filename.split('S')[-1][0:2])
-    if filename.split('N')[0] != filename: lat0 =  int(filename.split('N')[-1][0:2])
+    if filename.split('N')[0] != filename: lat0 = int(filename.split('N')[-1][0:2])
     if filename.split('W')[0] != filename: lon0 = -int(filename.split('W')[-1][0:3])
-    if filename.split('E')[0] != filename: lon0 =  int(filename.split('E')[-1][0:3])
+    if filename.split('E')[0] != filename: lon0 = int(filename.split('E')[-1][0:3])
 
     lat = np.linspace(lat0, lat0 + 1, SAMPLES)
     lon = np.linspace(lon0, lon0 + 1, SAMPLES)
 
     with open(hgt_file, 'rb') as hgt_data:
         # Each data is 16bit signed integer(i2) - big endian(>)
-        elevation = np.fromfile(hgt_data, np.dtype('>i2'), SAMPLES*SAMPLES)\
+        elevation = np.fromfile(hgt_data, np.dtype('>i2'), SAMPLES * SAMPLES)\
                                 .reshape((SAMPLES, SAMPLES))
         return np.flip(elevation, axis=0).T, lat, lon
-    
+
+
 def fill_missing_elevation(alt: np.ndarray) -> np.ndarray:
     '''
     NaN value are equal to -32768. Interpolated those value with kneighbor
@@ -175,8 +166,8 @@ def fill_missing_elevation(alt: np.ndarray) -> np.ndarray:
     interp = NearestNDInterpolator(np.transpose(mask), alt[mask])
     interp_alt = interp(*np.indices(alt.shape))
     return interp_alt
-    
-    
+
+
 def interpolate_elevation(lon_list: List[float], lat_list: List[float], alt: np.ndarray, lon: np.ndarray, lat:np.ndarray) -> List[int]:
     '''
     find elevation value at any point with 2d interpolation of SRTM matrix
@@ -196,7 +187,7 @@ def interpolate_elevation(lon_list: List[float], lat_list: List[float], alt: np.
 
     interp = RegularGridInterpolator((lon, lat), alt, bounds_error=False, fill_value=None)
 
-    return [ int(interp(tup)) for tup in zip(lon_list, lat_list)]
+    return [int(interp(tup)) for tup in zip(lon_list, lat_list)]
 
 
 def calc_incline(a: np.ndarray, b: np.ndarray, length: np.ndarray) -> np.ndarray:
