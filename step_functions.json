@@ -1,0 +1,36 @@
+{
+    "Comment": "step function calling the lambda function",
+    "StartAt": "api call",
+    "States": {
+        "api call": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "OutputPath": "$.Payload",
+            "Parameters": {
+                "Payload.$": "$",
+                "FunctionName": "arn:aws:lambda:ca-central-1:142023388927:function:quetzal-osm-api-dev:$LATEST"
+            },
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "Lambda.ServiceException",
+                        "Lambda.SdkClientException",
+                        "Lambda.TooManyRequestsException"
+                    ],
+                    "IntervalSeconds": 2,
+                    "MaxAttempts": 2,
+                    "BackoffRate": 2
+                },
+                {
+                    "ErrorEquals": [
+                        "Lambda.AWSLambdaException"
+                    ],
+                    "IntervalSeconds": 30,
+                    "MaxAttempts": 4,
+                    "BackoffRate": 2
+                }
+            ],
+            "End": true
+        }
+    }
+}
