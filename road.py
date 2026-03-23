@@ -5,12 +5,9 @@ from shapely.geometry import MultiLineString, Point, LineString
 from shapely.ops import linemerge
 import numpy as np
 import pandas as pd
-import networkx as nx
 from itertools import islice
 from scipy.sparse.csgraph import dijkstra
-from scipy.sparse import csr_matrix
-from numba import jit
-import numba as nb
+from graph_utils import get_edge_path, get_nodes_degree, sparse_matrix, get_path, get_strongly_connected_component
 from typing import Any, Callable
 
 
@@ -46,74 +43,6 @@ def get_epsg(lat: float, lon: float) -> int:
 	"""
 
 	return int(32700 - round((45 + lat) / 90, 0) * 100 + round((183 + lon) / 6, 0))
-
-
-# buildindex
-def build_index(edges):
-	nodelist = {e[0] for e in edges}.union({e[1] for e in edges})
-	nlen = len(nodelist)
-	return dict(zip(nodelist, range(nlen)))
-
-
-def sparse_matrix(edges, index=None):
-	if index is None:
-		index = build_index(edges)
-	nlen = len(index)
-	coefficients = zip(*((index[u], index[v], w) for u, v, w in edges))
-	row, col, data = coefficients
-	return csr_matrix((data, (row, col)), shape=(nlen, nlen)), index
-
-
-@jit(nopython=True, locals={'predecessors': nb.int32[:, ::1], 'i': nb.int32, 'j': nb.int32})
-def get_path(predecessors, i, j):
-	path = [j]
-	k = j
-	p = 0
-	while p != -9999:
-		k = p = predecessors[i, k]
-		path.append(p)
-	return path[::-1][1:]
-
-
-def get_edge_path(p):
-	return list(zip(p[:-1], p[1:]))
-
-	# def merged_reversed_geometries_dict(geojson_dict):
-	# 	features = {
-	# 		hash(tuple(tuple(p) for p in feature['geometry']['coordinates'])): feature
-	# 		for feature in geojson_dict['features']
-	# 	}
-	# 	counts = {}  # {geohash : 2 if the reverse geohash is in the geometries, 1 otherwise}
-	# 	drop = set()  # for each direct/indirect geometry pair, countain the lesser geohash
-	# 	for _, feature in features.items():
-	# 		geo_tuple = tuple(tuple(p) for p in feature['geometry']['coordinates'])
-	# 		reversed_geo_tuple = reversed(geo_tuple)
-	# 		k = hash(tuple(geo_tuple))
-	# 		kr = hash(tuple(reversed_geo_tuple))
-	# 		drop.add(min(k, kr))
-	# 		counts[k] = counts.get(k, 0) + 1
-	# 		counts[kr] = counts.get(kr, 0) + 1
-	# 		if k == kr:
-	# 			print('hey')
-
-	# 	# keep only the feature with the higher geohash
-	# 	drop = {d for d in drop if counts[d] > 1}
-	# 	features = {k: v for k, v in features.items() if k not in drop}
-	# 	for k, v in features.items():
-	# 		v['properties']['oneway'] = int(counts[k] == 1)
-
-	# 	result = dict(geojson_dict)
-	# 	result['features'] = list(features.values())
-	# return result
-
-
-# def merge_reversed_geometries(geometries):
-# 	try:
-# 		return merged_reversed_geometries_dict(geometries)
-# 	except KeyError:  # 'features'
-# 		geojson_dict = json.loads(geometries.to_json())
-# 		temp = merged_reversed_geometries_dict(geojson_dict)
-# 		return gpd.read_file(json.dumps(temp))
 
 
 def get_intersections(gdf):
@@ -207,29 +136,22 @@ def get_links_and_nodes(links: gpd.GeoDataFrame) -> tuple[gpd.GeoDataFrame, gpd.
 
 
 def main_strongly_connected_component(
-	links: gpd.GeoDataFrame, nodes: gpd.GeoDataFrame = None, split_direction: bool = False
+	links: gpd.GeoDataFrame, nodes: gpd.GeoDataFrame = None, split_direction=True
 ) -> gpd.GeoDataFrame:
 	"""
 	use split direction if the links are not duplicated (if there is 1 link for oneway=False)
 	remove cul-de-sac
 	"""
-	graph = nx.DiGraph()
-	graph.add_edges_from(links[['a', 'b']].values.tolist())
+	edges = links[['a', 'b']].values
 	if 'oneway' in links.columns and split_direction:
-		graph.add_edges_from(links.loc[~links['oneway'].astype(bool)][['b', 'a']].values.tolist())
-
-	main_scc = None
-	size = 0
-	for scc in nx.strongly_connected_components(graph):
-		if len(scc) > size:
-			size = len(scc)
-			main_scc = scc
-
-	l = links.loc[links['a'].isin(main_scc) & links['b'].isin(main_scc)]
+		reversed_edges = links.loc[~links['oneway'].astype(bool)][['b', 'a']].values.tolist()
+		np.concat([edges, reversed_edges])
+	main_scc = set(get_strongly_connected_component(edges))
+	_links = links[links['a'].isin(main_scc) & links['b'].isin(main_scc)]
 	if nodes is not None:
-		n = nodes.loc[list(main_scc)]
-		return l, n
-	return l
+		_nodes = nodes.loc[list(main_scc)]
+		return _links, _nodes
+	return _links
 
 
 def reverse_geom(geom):
@@ -264,10 +186,8 @@ def batched(iterable, n):
 
 def simplify(links, cutoff=10):
 	# create a graph and find all nodes with deg >2 (sources)
-	G = nx.DiGraph()
-	G.add_edges_from(links[['a', 'b']].values.tolist())
-	sources = [node for node, degree in dict(G.degree()).items() if degree > 2]
-	deg_dict = dict(G.degree())
+	deg_dict = get_nodes_degree(links[['a', 'b']].values)
+	sources = [node for node, degree in deg_dict.items() if degree > 2]
 	links['weight'] = 1
 	print(len(sources), 'deg 2 nodes')
 	path_to_merge = []
@@ -397,6 +317,7 @@ def simplify(links, cutoff=10):
 	links = links[~links['group'].isin(tlinks['group'].unique())]
 	links = pd.concat([links, tlinks])
 	links = links.drop(columns=['weight', 'group'])
+	links = links.sort_index()  # using scipy at the beginning make the index a bit ramdom.
 
 	return links
 
