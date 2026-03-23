@@ -120,7 +120,7 @@ def fetch_data(url: str, wd: str = '/tmp') -> None:
 		buffer = BytesIO(response.content)
 		with zipfile.ZipFile(buffer, 'r') as zip_ref:
 			zip_ref.extractall(wd)
-			print('file save to')
+			print('file save to', wd)
 
 
 def read_hgt_file(hgt_file: str, arc: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:

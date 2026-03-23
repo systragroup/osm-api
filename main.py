@@ -1,23 +1,38 @@
 import os
 import numpy as np
-from road import *
-from bike import *
-from overpass import fetch_overpass, get_overpass_query, get_bbox
+from road import (
+	get_links_and_nodes,
+	clean_oneway,
+	clean_maxspeed,
+	clean_lanes,
+	rectify_geometry_direction,
+	drop_duplicated_links,
+	simplify,
+	split_oneway,
+	main_strongly_connected_component,
+	process_list_in_col,
+	remove_list_in_col,
+	fill_na_col,
+	get_epsg,
+)
+from bike import test_bicycle_process, extended_bicycle_process
+from overpass import get_overpass_query, get_bbox, get_overpass_data, add_tags_as_columns, ways_to_geojson
 from elevation import get_elevation_from_srtm, calc_incline
-from typing import *
-from shapely.geometry import Polygon
+import geopandas as gpd
+from typing import Optional
+from shapely.geometry import Polygon, LineString
 
 CYCLEWAY_COLUMNS = ['cycleway:both', 'cycleway:left', 'cycleway:right']
 HIGHWAY_COLUMNS = ['highway', 'maxspeed', 'lanes', 'name', 'oneway', 'surface']
 
 
 def osm_importer(
-	bbox: Tuple[float, float, float, float],
-	highway_list: List[str],
-	cycleway_list: Optional[List[str]] = None,
+	bbox: tuple[float, float, float, float],
+	highway_list: list[str],
+	cycleway_list: Optional[list[str]] = None,
 	extended_cycleway: Optional[bool] = False,
 	wd: str = '/tmp/',
-) -> Tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
 
 	columns = HIGHWAY_COLUMNS.copy()
 	# if cycleway is requested. add cyclway tags to the request.
@@ -32,14 +47,21 @@ def osm_importer(
 	# Start
 
 	# Overpass API request
-	overpass_query = get_overpass_query(bbox, highway_list, cycleway_list)
-	fetch_overpass(overpass_query, columns, wd)
-
+	query = get_overpass_query(bbox, key='highway', tag_list=highway_list)
+	if cycleway_list:
+		cycleway_query = get_overpass_query(bbox, key='cycleway', tag_list=cycleway_list)
+		query = query + cycleway_query
+	data = get_overpass_data(query)
+	df = ways_to_geojson(data, LineString)
+	df = add_tags_as_columns(df, tags=columns)
 	# Create links and nodes netowrks from ways of OSM
 	print('Convert ways to links and node ...')
-	# do not split direction. we need to fix the oneway tag first.
-	links, nodes = get_links_and_nodes(os.path.join(wd, 'way.geojson'), split_direction=False)
-	nodes = nodes.set_crs(links.crs)
+	links, nodes = get_links_and_nodes(df)
+	links = links.drop(columns='osmid')
+	links.index = [f'rlink_{i}' for i in links.index]
+	links['a'] = links['a'].apply(lambda x: f'rnode_{x}')
+	links['b'] = links['b'].apply(lambda x: f'rnode_{x}')
+	nodes.index = [f'rnode_{i}' for i in nodes.index]
 
 	return links, nodes
 
@@ -47,7 +69,7 @@ def osm_importer(
 def osm_simplify(
 	links: gpd.GeoDataFrame,
 	nodes: gpd.GeoDataFrame,
-	highway_list: List[str],
+	highway_list: list[str],
 	add_elevation: bool = True,
 	split_direction: bool = False,
 	extended_cycleway: bool = False,
@@ -62,7 +84,7 @@ def osm_simplify(
 		else:
 			links = test_bicycle_process(links, CYCLEWAY_COLUMNS, highway_list)
 
-	links = links.drop(columns='tags')
+	links = links.drop(columns='tags', errors='ignore')
 	# convert oneway to bool.
 	links = clean_oneway(links)
 
@@ -104,7 +126,7 @@ def osm_simplify(
 		links[col] = links[col].apply(lambda x: remove_list_in_col(x, 'first'))
 
 	# Fill NaN with mean values by highway
-	links = fill_na_col(links, 'highway', 'maxspeed', np.mean)
+	links = fill_na_col(links, 'highway', 'maxspeed', lambda x: np.mean(x))
 	links = fill_na_col(links, 'highway', 'lanes', lambda x: np.floor(np.mean(x)))
 
 	# Add length

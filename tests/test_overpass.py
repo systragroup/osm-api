@@ -1,67 +1,62 @@
 import sys
 import unittest
 import os
-import json
+from shapely.geometry import LineString
+
 sys.path.insert(0, r'../osm-api/')
-from  overpass import *
-import pathlib as pl
+from overpass import get_overpass_query, get_overpass_data, ways_to_geojson, get_bbox, add_tags_as_columns
+
+from common import BBOX, HIGHWAY_LIST, HIGHWAY_COLUMNS, CYCLEWAY_LIST, CYCLEWAY_COLUMNS, to_json, read_json, get_path
 
 
-COLS = ['highway', 'maxspeed', 'lanes', 'name', 'oneway', 'surface']
-BBOX = (45.516012863655845,-73.61165474010419,45.54058887207495,-73.56153948806578)
-HIGHWAY_LIST = ['motorway','motorway_link','trunk','trunk_link',
-                'primary','primary_link','secondary','secondary_link',
-
-                'tertiary','tertiary_link','residential']
-CYCLEWAY_COL = ['cycleway', 'cycleway:both', 'cycleway:left','cycleway:right']
-CYCLEWAY_LIST = ["lane", "opposite", "opposite_lane", "track", "opposite_track", 
-                "share_busway", "opposite_share_busway", "shared_lane"]
+SKIP = False
+data_path = get_path()
 
 
-
-
-wd = 'tmp/'
-
-SKIP=False
-
-@unittest.skipIf(SKIP,'want to skip')
+@unittest.skipIf(SKIP, 'want to skip')
 class TestFetch(unittest.TestCase):
-    def assertIsFile(self, path):
-        if not pl.Path(path).resolve().is_file():
-            raise AssertionError("File does not exist: %s" % str(path))
-        
-    def test_get_overpass_query(self):
-        overpass_query = get_overpass_query(BBOX, HIGHWAY_LIST)
-        self.assertTrue('way["highway"="residential"]' in overpass_query)
-        self.assertTrue('way["cycleway"="lane"]' not in overpass_query)
-        self.assertTrue(str(BBOX) in overpass_query)
+	@classmethod
+	def setUpClass(self):
 
-    def test_get_overpass_query_with_cycleway(self):
-        overpass_query = get_overpass_query(BBOX, HIGHWAY_LIST,CYCLEWAY_LIST)
-        self.assertTrue('way["highway"="residential"]' in overpass_query)
-        self.assertTrue('way["cycleway"="lane"]' in overpass_query)
-        self.assertTrue(str(BBOX) in overpass_query)
-        
-    def test_fetch_overpass(self):
-        overpass_query = get_overpass_query(BBOX, HIGHWAY_LIST)
-        fetch_overpass(overpass_query,COLS,wd)
-        path = 'tmp/way.geojson'
-        self.assertIsFile(path)
+		# import roads
+		overpass_query = get_overpass_query(BBOX, 'highway', HIGHWAY_LIST)
+		rlinks_data = get_overpass_data(overpass_query)
+		to_json(rlinks_data, os.path.join(data_path, 'rlinks_data.json'))
 
-    def test_fetch_overpass_with_cycleway(self):
-        overpass_query = get_overpass_query(BBOX, HIGHWAY_LIST, CYCLEWAY_LIST)
-        fetch_overpass(overpass_query, COLS + CYCLEWAY_COL, wd, 'way_cycle.geojson')
-        path = 'tmp/way_cycle.geojson'
-        self.assertIsFile(path)
+		# import raod and cycleways
+		cycleway_query = get_overpass_query(BBOX, 'cycleway', CYCLEWAY_LIST)
+		query = overpass_query + cycleway_query
 
-    def test_get_bbox(self):
-        poly = [ [-74.021412, 40.696947], [-73.998055, 40.7603484], [-74.021472, 40.696069] ]
-        bbox = get_bbox(poly)
-        self.assertEqual(bbox,(40.696069, -74.021472, 40.7603484, -73.998055))
+		cycleways_data = get_overpass_data(query)
+		to_json(cycleways_data, os.path.join(data_path, 'cycleways_data.json'))
 
+	def test_get_bbox(self):
+		poly = [[-74.021412, 40.696947], [-73.998055, 40.7603484], [-74.021472, 40.696069]]
+		bbox = get_bbox(poly)
+		self.assertEqual(bbox, (40.696069, -74.021472, 40.7603484, -73.998055))
+
+	def test_ways_to_geojson(self):
+		ways = read_json(os.path.join(data_path, 'rlinks_data.json'))
+		df = ways_to_geojson(ways, geometry=LineString)
+		self.assertTrue(len(df) > 0)
+
+	def test_add_tags_as_columns(self):
+		ways = read_json(os.path.join(data_path, 'rlinks_data.json'))
+		df = ways_to_geojson(ways, geometry=LineString)
+		rlinks = add_tags_as_columns(df, tags=HIGHWAY_COLUMNS)
+		self.assertTrue(all([col in rlinks.columns for col in HIGHWAY_COLUMNS]))
+		rlinks.to_file(os.path.join(data_path, 'rlinks.geojson'))
+
+	def test_add_tags_as_columns2(self):
+		ways = read_json(os.path.join(data_path, 'cycleways_data.json'))
+		df = ways_to_geojson(ways, geometry=LineString)
+		tags = [*HIGHWAY_COLUMNS, *CYCLEWAY_COLUMNS]
+		rlinks = add_tags_as_columns(df, tags=tags)
+		self.assertTrue(all([col in rlinks.columns for col in tags]))
+		rlinks.to_file(os.path.join(data_path, 'cycleways.geojson'))
 
 
 if __name__ == '__main__':
-    if not os.path.exists('tmp'):
-        os.makedirs('tmp')
-    unittest.main()
+	if not os.path.exists('tmp'):
+		os.makedirs('tmp')
+	unittest.main()
