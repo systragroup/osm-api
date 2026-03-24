@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "osm-importer"
+version = "4.0.0"
+description = "import OSM network for transport planning"
+authors = ["Simon Boivin <sboivin@systra.com>"]
+readme = "README.md"
+repository = "https://github.com/systragroup/osm-api"
+keywords = ["transport", "OSM", "simulation", "fast", "openstreetmap"]
+license = "MIT"
+packages = [
+    { include = "osm_importer" }
+]
+
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.14"
+numpy = "*"
+pandas = "<3.0"
+geopandas = "*"
+numba = "*"
+requests ="*"
+scipy ="*"
+
+
+[tool.poetry.group.dev.dependencies]
+twine = "^6.2.0"
+pip-chill = "*"
+ruff = "*"
