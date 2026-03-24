@@ -317,7 +317,6 @@ def simplify(links, cutoff=10):
 	links = links[~links['group'].isin(tlinks['group'].unique())]
 	links = pd.concat([links, tlinks])
 	links = links.drop(columns=['weight', 'group'])
-	links = links.sort_index()  # using scipy at the beginning make the index a bit ramdom.
 
 	return links
 
