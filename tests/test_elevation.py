@@ -1,22 +1,19 @@
 # from home
 # python tests/test.py
-import sys
-import json
 import unittest
 import os
 import geopandas as gpd
 import numpy as np
 
-sys.path.insert(0, r'../osm-api/')
 from osm_importer import elevation
+from osm_importer.url_list import URL_LIST
 
 import pathlib as pl
 from common import get_path
 
 data_path = get_path()
 
-TESTDATA_FILENAME = os.path.join(os.path.dirname(__file__), 'nodes.geojson')
-URLDICT_FILENAME = os.path.join(os.path.dirname(__file__), '../url_list.json')
+
 SKIP = False
 
 
@@ -28,9 +25,8 @@ class TestInit(unittest.TestCase):
 	def setUpClass(self):
 		self.srtm = 'srtm3'
 		self.arc = 3
-		self.nodes = gpd.read_file(TESTDATA_FILENAME)
-		with open(URLDICT_FILENAME) as file:
-			self.url_dict = json.load(file)
+		self.nodes = gpd.read_file(os.path.join(data_path, 'nodes.geojson'))
+		self.url_dict = URL_LIST
 
 	def test_get_file_name(self):
 		name = elevation.get_file_name(45.443, -73.6)

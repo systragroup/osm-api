@@ -1,15 +1,13 @@
 import geopandas as gpd
 import numpy as np
 from typing import *
-import json
 import requests
 from io import BytesIO
 import zipfile
 import time
 from scipy.interpolate import RegularGridInterpolator, NearestNDInterpolator
-import os
 
-URL_LIST_PATH = os.path.join(os.path.dirname(__file__), 'url_list.json')
+from osm_importer.url_list import URL_LIST
 
 
 def get_elevation_from_srtm(tdf: gpd.GeoDataFrame) -> Dict[Any, int]:
@@ -39,14 +37,12 @@ def get_elevation_from_srtm(tdf: gpd.GeoDataFrame) -> Dict[Any, int]:
 	df['file_name'] = df.apply(lambda x: get_file_name(x['lat'], x['lon']), axis=1)
 
 	# read dict [fileName : url] from srtm.py python librairy
-	with open(URL_LIST_PATH) as file:
-		data = json.load(file)
 
 	el_dict = {}
 	for file in list(df['file_name'].unique()):
 		temp_df = df[df['file_name'] == file].copy()
 
-		url = data[srtm][file]
+		url = URL_LIST[srtm][file]
 
 		fetch_data(url)
 
