@@ -7,7 +7,13 @@ import numpy as np
 import pandas as pd
 from itertools import islice
 from scipy.sparse.csgraph import dijkstra
-from graph_utils import get_edge_path, get_nodes_degree, sparse_matrix, get_path, get_strongly_connected_component
+from osm_importer.graph_utils import (
+	get_edge_path,
+	get_nodes_degree,
+	sparse_matrix,
+	get_path,
+	get_strongly_connected_component,
+)
 from typing import Any, Callable
 
 
