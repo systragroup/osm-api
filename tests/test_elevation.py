@@ -8,7 +8,8 @@ import geopandas as gpd
 import numpy as np
 
 sys.path.insert(0, r'../osm-api/')
-import elevation
+from osm_importer import elevation
+
 import pathlib as pl
 from common import get_path
 

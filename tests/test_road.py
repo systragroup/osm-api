@@ -1,14 +1,12 @@
 # from home
 # python tests/test_osm.py
-import sys
 import unittest
 import os
 import numpy as np
 import geopandas as gpd
 import pandas as pd
 
-sys.path.insert(0, r'../osm-api/')
-import road
+from osm_importer import road
 
 from common import get_path, HIGHWAY_COLUMNS, CYCLEWAY_COLUMNS
 

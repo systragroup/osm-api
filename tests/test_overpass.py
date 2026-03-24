@@ -4,7 +4,7 @@ import os
 from shapely.geometry import LineString
 
 sys.path.insert(0, r'../osm-api/')
-from overpass import get_overpass_query, get_overpass_data, ways_to_geojson, get_bbox, add_tags_as_columns
+from osm_importer.overpass import get_overpass_query, get_overpass_data, ways_to_geojson, get_bbox, add_tags_as_columns
 
 from common import BBOX, HIGHWAY_LIST, HIGHWAY_COLUMNS, CYCLEWAY_LIST, CYCLEWAY_COLUMNS, to_json, read_json, get_path
 
