@@ -151,7 +151,7 @@ def main_strongly_connected_component(
 	edges = links[['a', 'b']].values
 	if 'oneway' in links.columns and split_direction:
 		reversed_edges = links.loc[~links['oneway'].astype(bool)][['b', 'a']].values.tolist()
-		np.concat([edges, reversed_edges])
+		edges = np.concat([edges, reversed_edges])
 	main_scc = set(get_strongly_connected_component(edges))
 	_links = links[links['a'].isin(main_scc) & links['b'].isin(main_scc)]
 	if nodes is not None:

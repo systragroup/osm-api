@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "osm-importer"
-version = "4.0.2"
+version = "4.0.3"
 description = "import OSM network for transport planning"
 authors = ["Simon Boivin <sboivin@systra.com>"]
 readme = "README.md"
@@ -25,4 +25,6 @@ scipy ="*"
 [tool.poetry.group.dev.dependencies]
 twine = "^6.2.0"
 pip-chill = "*"
+notebook = "<7.0"
+matplotlib="*"
 ruff = "*"
