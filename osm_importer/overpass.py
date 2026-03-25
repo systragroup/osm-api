@@ -4,7 +4,9 @@ import geopandas as gpd
 import time
 from shapely import geometry
 from typing import TypeAlias, Optional
+import logging
 
+log = logging.getLogger(__name__)
 BBOX: TypeAlias = tuple[float, float, float, float]
 OVERPASS_URL = 'http://overpass-api.de/api/interpreter'
 
@@ -50,10 +52,10 @@ def get_overpass_data(query: str, retries: int = 3) -> dict:
 
 			return response.json()
 		except Exception as err:
-			print(err)
+			log.info(err)
 			if i < retries:
 				wait = 2**i
-				print(f'retrying in {wait} seconds')
+				log.info(f'retrying in {wait} seconds')
 				time.sleep(wait)
 	raise Exception('Could not import data from Overpass API. try again')
 

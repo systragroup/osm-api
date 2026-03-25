@@ -16,6 +16,9 @@ from osm_importer.graph_utils import (
 	get_strongly_connected_component,
 )
 from typing import Any, Callable
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def process_list_in_col(col_values: Any, new_type: Any, function: Callable[[Any], Any] = np.nanmean) -> Any:
@@ -174,7 +177,7 @@ def rectify_geometry_direction(links, nodes):
 	node_dict = nodes['geometry'].to_dict()
 	links['node_geom'] = links['a'].apply(lambda x: node_dict.get(x))
 	sliced = links['geometry'].apply(lambda x: x.coords[0]) != links['node_geom'].apply(lambda x: x.coords[0])
-	print(len(links[sliced]), 'geometry to inverse')
+	log.info(len(links[sliced]), 'geometry to inverse')
 	links.loc[sliced, 'geometry'] = links.loc[sliced]['geometry'].apply(lambda x: reverse_geom(x))
 	links = links.drop(columns='node_geom')
 	return links
@@ -218,7 +221,7 @@ def simplify(links, cutoff=10):
 	deg_dict = get_nodes_degree(links[['a', 'b']].values)
 	sources = [node for node, degree in deg_dict.items() if degree > 2]
 	links['weight'] = 1
-	print(len(sources), 'deg 2 nodes')
+	log.info(len(sources), 'deg 2 nodes')
 	path_to_merge = []
 	# graph on oneway and highway as unique as we dont want to aggregate highway together or one way
 	for col1, col2 in [(a, b) for a in links['oneway'].unique() for b in links['highway'].unique()]:
@@ -261,7 +264,7 @@ def simplify(links, cutoff=10):
 							path_to_merge.append([*map(index_node.get, path)])
 							if len(path_to_merge) > 1:
 								if path_to_merge[-1] == path_to_merge[-2]:
-									print(path)
+									log.info(path)
 					# if destination == 2
 					elif len(path) == cutoff + 1:
 						# keep path if len(path) == cutoff+1. at the end redo on those with large cutoff
@@ -271,7 +274,7 @@ def simplify(links, cutoff=10):
 		# redo with large cutoff the path thats were longer than the cutoff
 		# ex:cutoff = 5, path = [3,2,2,2,2]. the real path may be [3,2,2,2,2,2,2,2,4]. and we will find it now.
 		if len(unfounds_origins) > 0:
-			print('find path with large cutoff for', len(unfounds_origins), ' origins')
+			log.info('find path with large cutoff for', len(unfounds_origins), ' origins')
 			origin_sparse = [node_index[x] for x in unfounds_origins]
 			dist_matrix, predecessors = dijkstra(
 				csgraph=mat, directed=True, indices=origin_sparse, return_predecessors=True, limit=100
@@ -322,20 +325,20 @@ def simplify(links, cutoff=10):
 	tlinks = tlinks.set_index('index')
 
 	# remove agg that change oneway
-	print(
+	log.info(
 		len(tlinks[tlinks['oneway'].apply(lambda x: type(x) == list)]),
 		'links were not merge because the oneway field is not the same',
 	)
 	tlinks = tlinks[~tlinks['oneway'].apply(lambda x: type(x) == list)]
 
-	print(
+	log.info(
 		len(tlinks[tlinks['highway'].apply(lambda x: type(x) == list)]),
 		'links were not merge because the highway field is not the same',
 	)
 	tlinks = tlinks[~tlinks['highway'].apply(lambda x: type(x) == list)]
 
 	# TODO: on a des multiLinestring. il faudrait mieux merger.
-	print(
+	log.info(
 		len(tlinks[tlinks['geometry'].apply(lambda x: x.geom_type != 'LineString')]),
 		'merged_links unmerged because the geometry became a multilinestring',
 	)
@@ -376,7 +379,7 @@ def split_duplicated_links(
 
 	links = links.reset_index()
 	duplicated_links = links[links.duplicated(subset=['a', 'b'])].copy()
-	print(f'Splitting {len(duplicated_links)} duplicated links')
+	log.info(f'Splitting {len(duplicated_links)} duplicated links')
 	duplicated_links['geometries'] = duplicated_links['geometry'].apply(cut, distance=0.5)
 	duplicated_links['index'] = duplicated_links['index'].apply(lambda x: [x + '_a', x + '_b'])
 	middle_nodes = duplicated_links['geometries'].apply(lambda g: Point(g[0].coords[-1]))
@@ -410,7 +413,7 @@ def drop_duplicated_links(
 	"""
 	before = len(links)
 	links = links.sort_values(sort_column, ascending=ascending).drop_duplicates(subset=['a', 'b']).sort_index()
-	print(before - len(links), 'links dropped')
+	log.info(before - len(links), 'links dropped')
 	return links
 
 
@@ -425,7 +428,7 @@ def clean_maxspeed(links: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 			links.loc[mph_index, 'maxspeed'].str.lower().str.replace('mph', '').astype('float') * 1.60934
 		)
 	except:
-		print('fail to convert mph in maxspeed to float ')
+		log.info('fail to convert mph in maxspeed to float ')
 	# this remove all strings lefts
 	links['maxspeed'] = links['maxspeed'].apply(pd.to_numeric, errors='coerce')
 	return links
@@ -439,7 +442,7 @@ def clean_oneway(links: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 	oneway_dict = {'yes': True}
 	links['oneway'] = links['oneway'].apply(lambda x: oneway_dict.get(x, False))
 	if len(links['oneway'].unique()) > 2:
-		print('WARNING: some oneway tags are not defined', links.unique())
+		log.info('WARNING: some oneway tags are not defined', links.unique())
 	return links
 
 

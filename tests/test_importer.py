@@ -74,9 +74,7 @@ class TestCyclewayImporter(unittest.TestCase):
 		keep_detour = False
 		links = self.links.copy()
 		nodes = self.nodes.copy()
-		print(links.columns)
 		links = simplify_bicycle_network(links, HIGHWAY_LIST, extended_cycleway=extended_cycleway)
-		print(links.columns)
 		links, nodes = simplify_road_network(links, nodes, add_elevation, split_direction, keep_detour)
 
 		expected_res = [

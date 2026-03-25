@@ -1,6 +1,8 @@
 import geopandas as gpd
 from typing import *
+import logging
 
+log = logging.getLogger(__name__)
 CYCLEWAY_COLUMNS = ['cycleway:both', 'cycleway:left', 'cycleway:right']
 
 
@@ -50,7 +52,7 @@ def rename_bicycle_tags(links: gpd.GeoDataFrame, col: str, inplace: bool = True)
 	replace tags with no, shared or yes.
 	inplace = False will create new column with prefix agg_
 	"""
-	print('original values : ', links[col].unique())
+	log.info('original values : ', links[col].unique())
 	prefix = '' if inplace else 'agg_'
 	links[prefix + col] = links[col]
 	# fill NaN with no
@@ -58,7 +60,7 @@ def rename_bicycle_tags(links: gpd.GeoDataFrame, col: str, inplace: bool = True)
 	cycle_dict = {'no': 'no', 'shared': 'shared', 'share_busway': 'shared', 'shared_lane': 'shared'}
 
 	links[prefix + col] = links[prefix + col].apply(lambda x: cycle_dict.get(x, 'yes'))
-	print('rename as : ', list(links[prefix + col].unique()))
+	log.info('rename as : ', list(links[prefix + col].unique()))
 
 	return links
 

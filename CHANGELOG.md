@@ -1,3 +1,8 @@
+## [4.1.0] (2026-03-25)
+## Features
+* add importer functions (road and cycleway processing)
+* add keep_detour to keep links with a,b duplicated (add a node in between)
+
 ## [4.0.3] (2026-03-24)
 ## bug fixes
 * when removing cul-de-sac. there was a mistake. one way were not added

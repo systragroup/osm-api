@@ -8,6 +8,9 @@ import time
 from scipy.interpolate import RegularGridInterpolator, NearestNDInterpolator
 
 from osm_importer.url_list import URL_LIST
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def get_elevation_from_srtm(tdf: gpd.GeoDataFrame) -> Dict[Any, int]:
@@ -109,14 +112,14 @@ def fetch_data(url: str, wd: str = '/tmp') -> None:
 		buffer = BytesIO(response.content)
 		with zipfile.ZipFile(buffer, 'r') as zip_ref:
 			zip_ref.extractall(wd)
-			print('file save to', wd)
+			log.info('file save to', wd)
 	except:
 		time.sleep(2)
 		response = requests.get(url)
 		buffer = BytesIO(response.content)
 		with zipfile.ZipFile(buffer, 'r') as zip_ref:
 			zip_ref.extractall(wd)
-			print('file save to', wd)
+			log.info('file save to', wd)
 
 
 def read_hgt_file(hgt_file: str, arc: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
