@@ -1,6 +1,7 @@
 import numpy as np
 import logging
 from osm_importer.road import (
+	get_links_and_nodes,
 	clean_oneway,
 	clean_maxspeed,
 	clean_lanes,
@@ -15,34 +16,72 @@ from osm_importer.road import (
 	get_epsg,
 	split_duplicated_links,
 )
-from osm_importer.bike import test_bicycle_process, extended_bicycle_process
+from osm_importer.overpass import get_overpass_query, get_overpass_data, add_tags_as_columns, ways_to_geojson
+from osm_importer.bike import simple_bicycle_process, extended_bicycle_process
 from osm_importer.elevation import get_elevation_from_srtm, calc_incline
 import geopandas as gpd
+from typing import Optional
+from shapely.geometry import LineString
+
 
 log = logging.getLogger(__name__)
 
-CYCLEWAY_COLUMNS = ['cycleway:both', 'cycleway:left', 'cycleway:right']
-HIGHWAY_COLUMNS = ['highway', 'maxspeed', 'lanes', 'name', 'oneway', 'surface']
+
+def import_road_network(
+	bbox: tuple[float, float, float, float],
+	highway_list: list[str],
+	cycleway_list: Optional[list[str]] = None,
+	tags: Optional[list[str]] = ['highway', 'maxspeed', 'lanes', 'name', 'oneway', 'surface'],
+) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+	"""
+	add cycleway to tags if you have cycleways. (ex: ['highway', 'maxspeed', 'lanes', 'name', 'oneway', 'surface','cycleway'])
+	ex of cycleway_list : ['lane','opposite','opposite_lane','track','opposite_track','share_busway','opposite_share_busway','shared_lane',]
+	"""
+
+	# create Query
+	query = get_overpass_query(bbox, key='highway', tag_list=highway_list)
+	if cycleway_list is not None:
+		cycleway_query = get_overpass_query(bbox, key='cycleway', tag_list=cycleway_list)
+		query += cycleway_query
+	# get data
+	log.info('Query road network ...')
+	data = get_overpass_data(query, retries=3)
+	# transform to geojson
+	df = ways_to_geojson(data, LineString)
+	df = add_tags_as_columns(df, tags=tags)
+	# Create links and nodes netowrks from ways of OSM
+	log.info('Convert ways to links and node ...')
+	links, nodes = get_links_and_nodes(df)
+	links = links.drop(columns='osmid')
+
+	return links, nodes
 
 
-def road_network_simplify(
+def simplify_bicycle_network(
+	links: gpd.GeoDataFrame, highway_list: list[str], extended_cycleway: bool = False
+) -> gpd.GeoDataFrame:
+	"""
+	return links with processed cycleways tags
+	"""
+	if 'cycleway' in links.columns:
+		if extended_cycleway:
+			links = extended_bicycle_process(links)
+		else:
+			links = simple_bicycle_process(links, highway_list)
+
+	return links
+
+
+def simplify_road_network(
 	links: gpd.GeoDataFrame,
 	nodes: gpd.GeoDataFrame,
-	highway_list: list[str],
 	add_elevation: bool = True,
 	split_direction: bool = False,
-	extended_cycleway: bool = False,
 	keep_detour: bool = False,
 ):
 
 	# simplify Linestring geometry. (remove anchor nodes)
 	links.geometry = links.simplify(0.00005)
-
-	if 'cycleway' in links.columns:
-		if extended_cycleway:
-			links = extended_bicycle_process(links)
-		else:
-			links = test_bicycle_process(links, CYCLEWAY_COLUMNS, highway_list)
 
 	links = links.drop(columns='tags', errors='ignore')
 	# convert oneway to bool.
@@ -81,9 +120,10 @@ def road_network_simplify(
 	if 'cycleway' in links.columns:
 		# sort and take last. sorted = [no,shared,yes]. so yes or shared if there is a list
 		links['cycleway'] = links['cycleway'].apply(lambda x: process_list_in_col(x, str, lambda x: np.sort(x)[-1]))
-		links['cycleway_reverse'] = links['cycleway_reverse'].apply(
-			lambda x: process_list_in_col(x, str, lambda x: np.sort(x)[-1])
-		)
+		if 'cycleway_reverse' in links.columns:
+			links['cycleway_reverse'] = links['cycleway_reverse'].apply(
+				lambda x: process_list_in_col(x, str, lambda x: np.sort(x)[-1])
+			)
 
 	for col in ['highway', 'name', 'surface']:
 		links[col] = links[col].apply(lambda x: remove_list_in_col(x, 'first'))

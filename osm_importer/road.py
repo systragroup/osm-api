@@ -368,9 +368,14 @@ def split_duplicated_links(
 	links: gpd.GeoDataFrame, nodes: gpd.GeoDataFrame
 ) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
 	crs = nodes.crs
+	# index must be string
+	links.index = links.index.astype(str)
+	nodes.index = nodes.index.astype(str)
+	links['a'] = links['a'].apply(str)
+	links['b'] = links['b'].apply(str)
+
 	links = links.reset_index()
-	links['dup'] = links['a'] + links['b']
-	duplicated_links = links[links.duplicated(subset='dup')].copy()
+	duplicated_links = links[links.duplicated(subset=['a', 'b'])].copy()
 	print(f'Splitting {len(duplicated_links)} duplicated links')
 	duplicated_links['geometries'] = duplicated_links['geometry'].apply(cut, distance=0.5)
 	duplicated_links['index'] = duplicated_links['index'].apply(lambda x: [x + '_a', x + '_b'])
@@ -389,9 +394,8 @@ def split_duplicated_links(
 		columns={'geometries': 'geometry'}
 	)
 
-	links = pd.concat([links[~links.duplicated(subset='dup')].copy(), duplicated_links])
+	links = pd.concat([links[~links.duplicated(subset=['a', 'b'])].copy(), duplicated_links])
 	links = links.set_crs(crs, allow_override=True)
-	links.drop(columns='dup', inplace=True)
 	nodes = pd.concat([nodes, middle_nodes])
 	nodes = nodes.set_crs(crs, allow_override=True)
 
@@ -405,9 +409,7 @@ def drop_duplicated_links(
 	drop duplicated links (a,b) with condition sort_column. if maxspeed and ascending=False, keep faster road
 	"""
 	before = len(links)
-	links['dup'] = links['a'] + links['b']
-	links = links.sort_values(sort_column, ascending=ascending).drop_duplicates('dup').sort_index()
-	links = links.drop(columns='dup')
+	links = links.sort_values(sort_column, ascending=ascending).drop_duplicates(subset=['a', 'b']).sort_index()
 	print(before - len(links), 'links dropped')
 	return links
 

@@ -1,10 +1,12 @@
 import geopandas as gpd
 from typing import *
 
+CYCLEWAY_COLUMNS = ['cycleway:both', 'cycleway:left', 'cycleway:right']
 
-def test_bicycle_process(links, cycleway_columns, highway_list):
+
+def simple_bicycle_process(links, highway_list):
 	# if tag is non existant. add it
-	for tag in cycleway_columns:
+	for tag in CYCLEWAY_COLUMNS:
 		if tag not in links.columns:
 			links[tag] = 'no'
 	links = rename_bicycle_tags(links, 'cycleway')
@@ -33,7 +35,7 @@ def test_bicycle_process(links, cycleway_columns, highway_list):
 	links['cycleway'] = links['combine_cycle_tag'].apply(lambda x: bike_dict.get(x))
 	links.loc[links['highway'] == 'cycleway', 'cycleway'] = 'yes'
 
-	links = links.drop(columns=cycleway_columns)
+	links = links.drop(columns=CYCLEWAY_COLUMNS)
 	# remove highway not asked for. (because of cycleway)
 	links = links[links['highway'].isin(highway_list)]
 	links = links.drop(columns='combine_cycle_tag')

@@ -78,7 +78,7 @@ def ways_to_geojson(data: dict, geometry: geometry = geometry.LineString) -> gpd
 
 
 def add_tags_as_columns(
-	ways: gpd.GeoDataFrame, tags: Optional[list[str]] = None, to_drop: list[str] = ['nodes', 'type', 'tags']
+	ways: gpd.GeoDataFrame, tags: Optional[list[str]] = None, to_drop: list[str] = ['nodes', 'type']
 ):
 	"""
 	create new column with tags key. if None. use all tags
