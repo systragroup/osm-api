@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from itertools import islice
 from scipy.sparse.csgraph import dijkstra
+import math
 from osm_importer.graph_utils import (
 	get_edge_path,
 	get_nodes_degree,
@@ -190,6 +191,28 @@ def batched(iterable, n):
 		yield batch
 
 
+def cut(line, distance, normalized=True):
+	if normalized:
+		distance *= line.length
+
+	# Cuts a line in two at a distance from its starting point
+	if distance <= 0.0:
+		return [None, LineString(line)]
+	if distance >= line.length:
+		return [LineString(line), None]
+	coords = list(line.coords)
+	pd = 0
+	for i, p in enumerate(coords):
+		if i == 0:
+			continue
+		pd += math.dist(p, coords[i - 1])
+		if pd == distance:
+			return [LineString(coords[: i + 1]), LineString(coords[i:])]
+		if pd > distance:
+			cp = line.interpolate(distance)
+			return [LineString(coords[:i] + [(cp.x, cp.y)]), LineString([(cp.x, cp.y)] + coords[i:])]
+
+
 def simplify(links, cutoff=10):
 	# create a graph and find all nodes with deg >2 (sources)
 	deg_dict = get_nodes_degree(links[['a', 'b']].values)
@@ -339,6 +362,40 @@ def split_oneway(links: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
 	links = pd.concat([links, nlinks])
 	links['oneway'] = True
 	return links
+
+
+def split_duplicated_links(
+	links: gpd.GeoDataFrame, nodes: gpd.GeoDataFrame
+) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+	crs = nodes.crs
+	links = links.reset_index()
+	links['dup'] = links['a'] + links['b']
+	duplicated_links = links[links.duplicated(subset='dup')].copy()
+	print(f'Splitting {len(duplicated_links)} duplicated links')
+	duplicated_links['geometries'] = duplicated_links['geometry'].apply(cut, distance=0.5)
+	duplicated_links['index'] = duplicated_links['index'].apply(lambda x: [x + '_a', x + '_b'])
+	middle_nodes = duplicated_links['geometries'].apply(lambda g: Point(g[0].coords[-1]))
+	middle_nodes.index = duplicated_links['a'] + '_m'
+	middle_nodes.name = 'geometry'
+
+	duplicated_links['middle_node'] = middle_nodes.index
+	duplicated_links['a'] = duplicated_links[['a', 'middle_node']].values.tolist()
+	duplicated_links['b'] = duplicated_links[['middle_node', 'b']].values.tolist()
+
+	cols = ['index', 'a', 'b', 'geometries']
+	other_cols = [c for c in duplicated_links.columns if c not in cols]
+	duplicated_links = duplicated_links.set_index(other_cols).apply(pd.Series.explode).reset_index()
+	duplicated_links = duplicated_links.drop(columns=['geometry', 'middle_node']).rename(
+		columns={'geometries': 'geometry'}
+	)
+
+	links = pd.concat([links[~links.duplicated(subset='dup')].copy(), duplicated_links])
+	links = links.set_crs(crs, allow_override=True)
+	links.drop(columns='dup', inplace=True)
+	nodes = pd.concat([nodes, middle_nodes])
+	nodes = nodes.set_crs(crs, allow_override=True)
+
+	return links.set_index('index'), gpd.GeoDataFrame(nodes, crs=crs)
 
 
 def drop_duplicated_links(
