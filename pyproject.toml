@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "osm-importer"
-version = "4.1.0"
+version = "4.1.1"
 description = "import OSM network for transport planning"
 authors = ["Simon Boivin <sboivin@systra.com>"]
 readme = "README.md"
@@ -13,7 +13,7 @@ packages = [
 
 
 [tool.poetry.dependencies]
-python = ">=3.12,<3.14"
+python = "^3.10"
 numpy = "*"
 pandas = "<3.0"
 geopandas = "*"

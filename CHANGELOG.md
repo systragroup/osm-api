@@ -1,3 +1,7 @@
+## [4.1.1] (2026-03-26)
+## Changes
+* change python requirements for ^3.10
+
 ## [4.1.0] (2026-03-25)
 ## Features
 * add importer functions (road and cycleway processing)
