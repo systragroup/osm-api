@@ -1,3 +1,7 @@
+## [4.1.2] (2026-03-26)
+## bug fixes
+* add user_agent in overpass header
+
 ## [4.1.1] (2026-03-26)
 ## Changes
 * change python requirements for ^3.10

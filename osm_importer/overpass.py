@@ -9,6 +9,7 @@ import logging
 log = logging.getLogger(__name__)
 BBOX: TypeAlias = tuple[float, float, float, float]
 OVERPASS_URL = 'http://overpass-api.de/api/interpreter'
+HEADERS = {'User-Agent': 'osm-api python (https://github.com/systragroup/osm-api)'}
 
 
 def _overpass_decorator(query: str):
@@ -46,7 +47,7 @@ def get_overpass_data(query: str, retries: int = 3) -> dict:
 	overpassQuery = _overpass_decorator(query)
 	for i in range(1, retries + 1):
 		try:
-			response = requests.get(OVERPASS_URL, params={'data': overpassQuery}, timeout=60)
+			response = requests.get(OVERPASS_URL, params={'data': overpassQuery}, headers=HEADERS, timeout=60)
 			if response.status_code != 200:
 				raise Exception(f'Overpass API error {response.status_code}: {response.text[:200]}')
 

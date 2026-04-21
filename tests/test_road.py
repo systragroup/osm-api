@@ -76,6 +76,8 @@ class TestCleaning(unittest.TestCase):
 	def setUpClass(self):
 		ways = gpd.read_file(os.path.join(data_path, 'rlinks.geojson')).set_index('id')
 		links, nodes = road.get_links_and_nodes(ways)
+		links = links.drop(columns=['tags'], errors='ignore')
+
 		self.links = links
 		self.nodes = nodes
 
@@ -109,6 +111,7 @@ class TestSimplify(unittest.TestCase):
 	def setUpClass(self):
 		ways = gpd.read_file(os.path.join(data_path, 'rlinks.geojson'))
 		links, nodes = road.get_links_and_nodes(ways)
+		links = links.drop(columns=['tags'], errors='ignore')
 		links = road.clean_oneway(links)
 		links = road.clean_maxspeed(links)
 		links = road.drop_duplicated_links(links, sort_column='maxspeed')
@@ -160,6 +163,7 @@ class TestListCleaning(unittest.TestCase):
 		links = road.clean_oneway(links)
 		links = road.clean_maxspeed(links)
 		links = road.drop_duplicated_links(links, sort_column='maxspeed')
+		links = links.drop(columns=['tags'], errors='ignore')
 		links = road.simplify(links)
 		links = road.split_oneway(links)
 		links = road.main_strongly_connected_component(links, None, False)
@@ -171,6 +175,27 @@ class TestListCleaning(unittest.TestCase):
 		links['maxspeed'] = links['maxspeed'].apply(lambda x: road.process_list_in_col(x, float, np.nanmean))
 		links = road.fill_na_col(links, 'highway', 'maxspeed', np.mean)
 		self.assertTrue(all([np.isfinite(val) for val in links['maxspeed'].unique()]))
+
+
+@unittest.skipIf(SKIP, 'want to skip')
+class TestSplitDetour(unittest.TestCase):
+	@classmethod
+	def setUpClass(self):
+		ways = gpd.read_file(os.path.join(data_path, 'rlinks.geojson'))
+		links, nodes = road.get_links_and_nodes(ways)
+		links.geometry = links.simplify(0.00005)
+		links = links.drop(columns=['tags'], errors='ignore')
+		links = road.clean_oneway(links)
+		links = road.clean_maxspeed(links)
+		links = road.clean_lanes(links)
+		links = road.rectify_geometry_direction(links, nodes)
+		self.links = links
+		self.nodes = nodes
+
+	def test(self):
+		links = self.links
+		links['geometries'] = links['geometry'].apply(road.cut, distance=0.5)  # return 2 linestring
+		print(links['geometries'].apply(lambda g: g[0].coords[-1] == g[1].coords[0]).all())
 
 
 if __name__ == '__main__':
