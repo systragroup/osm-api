@@ -1,4 +1,9 @@
-## [4.1.2] (2026-03-26)
+## [4.2.0] (2026-04-28)
+## Features
+* add date parameter to import historical data in import_data_from_osm().
+    ISO8601 ex:"2015-10-28T19:20:00Z.
+
+## [4.1.2] (2026-04-21)
 ## bug fixes
 * add user_agent in overpass header
 
@@ -7,7 +12,7 @@
 * change python requirements for ^3.10
 
 ## [4.1.0] (2026-03-25)
-## Features
+## 
 * add importer functions (road and cycleway processing)
 * add keep_detour to keep links with a,b duplicated (add a node in between)
 

@@ -30,6 +30,12 @@ class TestFetch(unittest.TestCase):
 		cycleways_data = get_overpass_data(query)
 		to_json(cycleways_data, os.path.join(data_path, 'cycleways_data.json'))
 
+	def test_date(self):
+		overpass_query = get_overpass_query(BBOX, 'highway', HIGHWAY_LIST)
+		data = get_overpass_data(overpass_query, date='2025-04-03T19:20:00Z')
+		ways = read_json(os.path.join(data_path, 'rlinks_data.json'))
+		self.assertNotEqual(data, ways)
+
 	def test_get_bbox(self):
 		poly = [[-74.021412, 40.696947], [-73.998055, 40.7603484], [-74.021472, 40.696069]]
 		bbox = get_bbox(poly)

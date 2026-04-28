@@ -12,9 +12,10 @@ OVERPASS_URL = 'http://overpass-api.de/api/interpreter'
 HEADERS = {'User-Agent': 'osm-api python (https://github.com/systragroup/osm-api)'}
 
 
-def _overpass_decorator(query: str):
+def _overpass_decorator(query: str, date: Optional[str] = None):
 	"""
 	take a overpass proto query get_overpass_query() and add headers and footer
+	date: ISO8601 ex: "2015-10-28T19:20:00Z"
 	"""
 	header = """
 	[out:json][timeout:180];
@@ -26,6 +27,9 @@ def _overpass_decorator(query: str):
 	>;
 	out skel qt;
 	"""
+	if date:
+		header = header.replace('[out:json]', f'[date:"{date}"][out:json]')
+
 	return header + query + footer
 
 
@@ -33,7 +37,7 @@ def get_overpass_query(bbox: BBOX, key: str = 'highway', tag_list: list[str] = [
 	"""
 	bbox : (ymin, xmin, ymax, xmax)
 	key: osm key ex:highway will fetch way[highway]
-	# tag_list: list of tag to includes ex: way[highway ~ motorway | primary]. if empty import all
+	tag_list: list of tag to includes ex: way[highway ~ motorway | primary]. if empty import all
 	"""
 	if len(tag_list) == 0:
 		return f'way["{key}"]{bbox};\n'
@@ -42,9 +46,8 @@ def get_overpass_query(bbox: BBOX, key: str = 'highway', tag_list: list[str] = [
 		return f'way["{key}"~"{tags}"]{bbox};\n'
 
 
-def get_overpass_data(query: str, retries: int = 3) -> dict:
-
-	overpassQuery = _overpass_decorator(query)
+def get_overpass_data(query: str, retries: int = 3, date: Optional[str] = None) -> dict:
+	overpassQuery = _overpass_decorator(query, date)
 	for i in range(1, retries + 1):
 		try:
 			response = requests.get(OVERPASS_URL, params={'data': overpassQuery}, headers=HEADERS, timeout=60)
@@ -95,9 +98,17 @@ def add_tags_as_columns(
 	return ways.reset_index()
 
 
-def import_data_from_osm(bbox: BBOX, key: str, geometry: geometry, tag_list: list[str] = []) -> gpd.GeoDataFrame:
+def import_data_from_osm(
+	bbox: BBOX, key: str, geometry: geometry, tag_list: list[str] = [], date: Optional[str] = None
+) -> gpd.GeoDataFrame:
+	"""
+	bbox : (ymin, xmin, ymax, xmax)
+	key: osm key ex:highway will fetch way[highway]
+	tag_list: list of tag to includes ex: way[highway ~ motorway | primary]. if empty import all
+	date: historic datetime to import data in ISO8601 (ex: "2015-10-28T19:20:00Z")
+	"""
 	overpassQuery = get_overpass_query(bbox, key, tag_list)
-	data = get_overpass_data(overpassQuery)
+	data = get_overpass_data(overpassQuery, date)
 	ways = ways_to_geojson(data, geometry)
 	ways = add_tags_as_columns(ways, tags=[key])
 	return ways
