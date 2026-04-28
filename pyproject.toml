@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "osm-importer"
-version = "4.2.0"
+version = "4.2.1"
 description = "import OSM network for transport planning"
 authors = ["Simon Boivin <sboivin@systra.com>"]
 readme = "README.md"

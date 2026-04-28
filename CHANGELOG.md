@@ -1,3 +1,7 @@
+## [4.2.1] (2026-04-28)
+## bug fixes
+* add date in import_road_network() function
+
 ## [4.2.0] (2026-04-28)
 ## Features
 * add date parameter to import historical data in import_data_from_osm().

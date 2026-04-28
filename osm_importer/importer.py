@@ -32,10 +32,18 @@ def import_road_network(
 	highway_list: list[str],
 	cycleway_list: Optional[list[str]] = None,
 	tags: Optional[list[str]] = ['highway', 'maxspeed', 'lanes', 'name', 'oneway', 'surface'],
+	retries: int = 3,
+	date: Optional[str] = None,
 ) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
 	"""
-	add cycleway to tags if you have cycleways. (ex: ['highway', 'maxspeed', 'lanes', 'name', 'oneway', 'surface','cycleway'])
-	ex of cycleway_list : ['lane','opposite','opposite_lane','track','opposite_track','share_busway','opposite_share_busway','shared_lane',]
+	bbox : (ymin, xmin, ymax, xmax)
+	highway_list: list of highway tags to includes
+			ex: ["motorway", "trunk", "primary", "secondary", "tertiary", "residential"]
+	cycleway_list: list of cycleway to import.
+			ex: ['lane','opposite','opposite_lane','track','opposite_track','share_busway','opposite_share_busway','shared_lane']
+	retries: number of retry on the overpass API if it fail
+	date: date for historical data import in ISO8601
+	        ex:"2015-10-28T19:20:00Z.
 	"""
 
 	# create Query
@@ -45,7 +53,7 @@ def import_road_network(
 		query += cycleway_query
 	# get data
 	log.info('Query road network ...')
-	data = get_overpass_data(query, retries=3)
+	data = get_overpass_data(query, retries=retries, date=date)
 	# transform to geojson
 	df = ways_to_geojson(data, LineString)
 	df = add_tags_as_columns(df, tags=tags)
